@@ -6,472 +6,84 @@
     <title>Global Chat Room</title>
     <script src="https://cdn.ably.com/lib/ably.min-1.js"></script>
     <style>
-        body { 
-            font-family: sans-serif; 
-            display: flex; 
-            flex-direction: column; 
-            height: 100vh; 
-            margin: 0; 
-            background: #f0f2f5; 
-        }
-        #chat-box { 
-            flex: 1; 
-            overflow-y: auto; 
-            padding: 20px; 
-        }
-        .msg { 
-            display: flex; 
-            align-items: flex-start;
-            background: white; 
-            padding: 10px; 
-            border-radius: 8px; 
-            margin-bottom: 10px; 
-            box-shadow: 0 1px 2px rgba(0,0,0,0.1); 
-            gap: 10px;
-        }
-        .msg-avatar { 
-            width: 40px; 
-            height: 40px; 
-            border-radius: 50%; 
-            object-fit: cover;
-            flex-shrink: 0;
-        }
-        .msg-content {
-            flex: 1;
-        }
-        .msg-user {
-            font-weight: bold;
-            margin-bottom: 5px;
-            color: #333;
-        }
-        .input-area { 
-            padding: 20px; 
-            background: white; 
-            display: flex; 
-            gap: 10px; 
-            align-items: center;
-        }
-        input { 
-            padding: 10px; 
-            border: 1px solid #ccc; 
-            border-radius: 5px; 
-        }
-        button { 
-            padding: 10px 20px; 
-            background: #0084ff; 
-            color: white; 
-            border: none; 
-            border-radius: 5px; 
-            cursor: pointer; 
-        }
-        #profile-section {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-        #current-avatar {
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
-            object-fit: cover;
-            border: 2px solid #0084ff;
-            cursor: pointer;
-        }
-        .modal {
-            display: none;
-            position: fixed;
-            z-index: 100;
-            left: 0;
-            top: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(0,0,0,0.5);
-        }
-        .modal-content {
-            background-color: white;
-            margin: 10% auto;
-            padding: 20px;
-            border-radius: 10px;
-            width: 90%;
-            max-width: 500px;
-        }
-        .avatar-options {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(60px, 1fr));
-            gap: 10px;
-            margin: 20px 0;
-        }
-        .avatar-option {
-            width: 60px;
-            height: 60px;
-            border-radius: 50%;
-            object-fit: cover;
-            cursor: pointer;
-            border: 2px solid transparent;
-            transition: border-color 0.3s;
-        }
-        .avatar-option:hover, .avatar-option.selected {
-            border-color: #0084ff;
-        }
-        .modal-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 20px;
-        }
-        .close-btn {
-            font-size: 24px;
-            cursor: pointer;
-            color: #666;
-        }
-        .upload-section {
-            margin: 20px 0;
-            padding: 20px;
-            border: 2px dashed #ccc;
-            border-radius: 5px;
-            text-align: center;
-        }
-        #file-input {
-            display: none;
-        }
-        .upload-btn {
-            display: inline-block;
-            padding: 10px 20px;
-            background: #f0f2f5;
-            border-radius: 5px;
-            cursor: pointer;
-            margin-top: 10px;
-        }
-        .default-avatar {
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: white;
-            font-weight: bold;
-            font-size: 18px;
-        }
+        body { font-family: sans-serif; margin: 0; background: #f0f2f5; height: 100vh; display: flex; flex-direction: column; }
+        #chat-box { flex: 1; padding: 20px; overflow-y: auto; }
+        .msg { background: white; padding: 10px; margin: 10px 0; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); display: flex; align-items: center; gap: 10px; }
+        .avatar { width: 40px; height: 40px; border-radius: 50%; background: #0084ff; color: white; display: flex; align-items: center; justify-content: center; font-weight: bold; }
+        .input-area { background: white; padding: 20px; display: flex; gap: 10px; align-items: center; }
+        input { padding: 10px; border: 1px solid #ccc; border-radius: 5px; }
+        #username { width: 120px; }
+        #message { flex: 1; }
+        button { padding: 10px 20px; background: #0084ff; color: white; border: none; border-radius: 5px; cursor: pointer; }
     </style>
 </head>
 <body>
-
     <div id="chat-box"></div>
-
     <div class="input-area">
-        <div id="profile-section">
-            <div id="current-avatar" onclick="openProfileModal()">
-                <!-- Avatar will be set by JavaScript -->
-            </div>
-            <input type="text" id="username" placeholder="Your Name" style="width: 120px;">
-        </div>
-        <input type="text" id="message" placeholder="Type a message..." style="flex: 1;">
+        <input type="text" id="username" placeholder="Your Name">
+        <input type="text" id="message" placeholder="Type message...">
         <button onclick="sendMessage()">Send</button>
     </div>
-
-    <!-- Profile Picture Modal -->
-    <div id="profile-modal" class="modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2>Choose Profile Picture</h2>
-                <span class="close-btn" onclick="closeProfileModal()">&times;</span>
-            </div>
-            
-            <div class="upload-section">
-                <p>Upload your own picture:</p>
-                <input type="file" id="file-input" accept="image/*">
-                <label for="file-input" class="upload-btn">Choose File</label>
-                <div id="preview-container" style="margin-top: 10px;"></div>
-            </div>
-
-            <p>Or select from default avatars:</p>
-            <div class="avatar-options" id="default-avatars">
-                <!-- Default avatars will be generated by JavaScript -->
-            </div>
-
-            <button onclick="saveProfilePicture()" style="width: 100%; margin-top: 20px;">Save Profile Picture</button>
-        </div>
-    </div>
-
     <script>
-        // Connect to Ably
-        const ably = new Ably.Realtime('durKGQ.WtBhaA:gNEegxAlZu388_eElwwtvTWwIIkli3Y-A2uAxVQqnPE'); 
+        // Chat setup
+        const ably = new Ably.Realtime('durKGQ.WtBhaA:gNEegxAlZu388_eElwwtvTWwIIkli3Y-A2uAxVQqnPE');
         const channel = ably.channels.get('global-chat');
-
         const chatBox = document.getElementById('chat-box');
         const messageInput = document.getElementById('message');
         const nameInput = document.getElementById('username');
-        const currentAvatar = document.getElementById('current-avatar');
-        const profileModal = document.getElementById('profile-modal');
-        const fileInput = document.getElementById('file-input');
-        const previewContainer = document.getElementById('preview-container');
-        const defaultAvatarsContainer = document.getElementById('default-avatars');
-
-        // Default avatar colors and initials
-        const defaultAvatars = [
-            { color: '#0084ff', initial: 'A' },
-            { color: '#ff6b6b', initial: 'B' },
-            { color: '#4CAF50', initial: 'C' },
-            { color: '#FF9800', initial: 'D' },
-            { color: '#9C27B0', initial: 'E' },
-            { color: '#607D8B', initial: 'F' },
-            { color: '#00BCD4', initial: 'G' },
-            { color: '#8BC34A', initial: 'H' }
-        ];
-
-        // Current user's profile picture (can be data URL or default avatar ID)
-        let currentProfilePicture = null;
-        let selectedAvatar = null;
-
-        // Initialize on page load
-        document.addEventListener('DOMContentLoaded', function() {
-            loadProfilePicture();
-            generateDefaultAvatars();
-            setupFileUpload();
-        });
-
-        // Load profile picture from localStorage
-        function loadProfilePicture() {
-            const savedProfile = localStorage.getItem('chatProfile');
-            if (savedProfile) {
-                const profile = JSON.parse(savedProfile);
-                currentProfilePicture = profile.avatar;
-                nameInput.value = profile.name || '';
-                updateAvatarDisplay();
-            } else {
-                // Set first default avatar as initial
-                currentProfilePicture = 'default:0';
-                updateAvatarDisplay();
-            }
+        
+        // Load saved name
+        if(localStorage.getItem('chatName')) {
+            nameInput.value = localStorage.getItem('chatName');
         }
-
-        // Save profile picture to localStorage
-        function saveProfilePictureToStorage() {
-            const profile = {
-                name: nameInput.value,
-                avatar: currentProfilePicture,
-                timestamp: new Date().getTime()
-            };
-            localStorage.setItem('chatProfile', JSON.stringify(profile));
-        }
-
-        // Update avatar display
-        function updateAvatarDisplay() {
-            if (currentProfilePicture && currentProfilePicture.startsWith('data:')) {
-                // Data URL (uploaded image)
-                currentAvatar.innerHTML = '';
-                const img = document.createElement('img');
-                img.src = currentProfilePicture;
-                img.style.width = '100%';
-                img.style.height = '100%';
-                img.style.borderRadius = '50%';
-                currentAvatar.appendChild(img);
-            } else if (currentProfilePicture && currentProfilePicture.startsWith('default:')) {
-                // Default avatar
-                const index = parseInt(currentProfilePicture.split(':')[1]);
-                const avatar = defaultAvatars[index];
-                currentAvatar.innerHTML = '';
-                const div = document.createElement('div');
-                div.className = 'default-avatar';
-                div.style.background = avatar.color;
-                div.textContent = avatar.initial;
-                currentAvatar.appendChild(div);
-            }
-        }
-
-        // Generate default avatar options
-        function generateDefaultAvatars() {
-            defaultAvatars.forEach((avatar, index) => {
-                const div = document.createElement('div');
-                div.className = 'avatar-option';
-                div.style.background = avatar.color;
-                div.innerHTML = `<div style="color: white; font-weight: bold; font-size: 20px; display: flex; align-items: center; justify-content: center; height: 100%;">${avatar.initial}</div>`;
-                div.onclick = () => selectDefaultAvatar(index);
-                defaultAvatarsContainer.appendChild(div);
-            });
-        }
-
-        // Setup file upload functionality
-        function setupFileUpload() {
-            fileInput.addEventListener('change', function(e) {
-                const file = e.target.files[0];
-                if (file) {
-                    const reader = new FileReader();
-                    reader.onload = function(event) {
-                        // Clear previous preview
-                        previewContainer.innerHTML = '';
-                        
-                        // Create preview
-                        const img = document.createElement('img');
-                        img.src = event.target.result;
-                        img.className = 'avatar-option selected';
-                        img.style.width = '100%';
-                        img.style.height = '100%';
-                        previewContainer.appendChild(img);
-                        
-                        // Set as selected
-                        selectedAvatar = event.target.result;
-                        
-                        // Clear default avatar selection
-                        document.querySelectorAll('.avatar-option.selected').forEach(el => {
-                            el.classList.remove('selected');
-                        });
-                    };
-                    reader.readAsDataURL(file);
-                }
-            });
-        }
-
-        // Select default avatar
-        function selectDefaultAvatar(index) {
-            selectedAvatar = `default:${index}`;
-            
-            // Update UI
-            document.querySelectorAll('.avatar-option.selected').forEach(el => {
-                el.classList.remove('selected');
-            });
-            event.target.closest('.avatar-option').classList.add('selected');
-            
-            // Clear file input
-            fileInput.value = '';
-            previewContainer.innerHTML = '';
-        }
-
-        // Open profile modal
-        function openProfileModal() {
-            profileModal.style.display = 'block';
-            selectedAvatar = currentProfilePicture;
-            
-            // Highlight current avatar in modal
-            document.querySelectorAll('.avatar-option.selected').forEach(el => {
-                el.classList.remove('selected');
-            });
-            
-            if (currentProfilePicture && currentProfilePicture.startsWith('default:')) {
-                const index = parseInt(currentProfilePicture.split(':')[1]);
-                const avatarElements = document.querySelectorAll('.avatar-option');
-                if (avatarElements[index]) {
-                    avatarElements[index].classList.add('selected');
-                }
-            }
-        }
-
-        // Close profile modal
-        function closeProfileModal() {
-            profileModal.style.display = 'none';
-        }
-
-        // Save profile picture
-        function saveProfilePicture() {
-            if (selectedAvatar) {
-                currentProfilePicture = selectedAvatar;
-                updateAvatarDisplay();
-                saveProfilePictureToStorage();
-                closeProfileModal();
-            }
-        }
-
-        // Listen for new messages
+        
+        // Receive messages
         channel.subscribe('message', (msg) => {
-            const msgDiv = document.createElement('div');
-            msgDiv.classList.add('msg');
-            
-            // Create avatar
-            const avatarDiv = document.createElement('div');
-            avatarDiv.classList.add('msg-avatar');
-            
-            if (msg.data.avatar && msg.data.avatar.startsWith('data:')) {
-                // User uploaded image
-                const img = document.createElement('img');
-                img.src = msg.data.avatar;
-                img.style.width = '100%';
-                img.style.height = '100%';
-                img.style.borderRadius = '50%';
-                avatarDiv.appendChild(img);
-            } else if (msg.data.avatar && msg.data.avatar.startsWith('default:')) {
-                // Default avatar
-                const index = parseInt(msg.data.avatar.split(':')[1]);
-                const avatar = defaultAvatars[index] || defaultAvatars[0];
-                const div = document.createElement('div');
-                div.className = 'default-avatar';
-                div.style.background = avatar.color;
-                div.style.width = '100%';
-                div.style.height = '100%';
-                div.style.display = 'flex';
-                div.style.alignItems = 'center';
-                div.style.justifyContent = 'center';
-                div.textContent = avatar.initial;
-                avatarDiv.appendChild(div);
-            } else {
-                // Fallback
-                const div = document.createElement('div');
-                div.className = 'default-avatar';
-                div.style.background = '#ccc';
-                div.style.width = '100%';
-                div.style.height = '100%';
-                div.style.display = 'flex';
-                div.style.alignItems = 'center';
-                div.style.justifyContent = 'center';
-                div.textContent = '?';
-                avatarDiv.appendChild(div);
-            }
-            
-            // Create content
-            const contentDiv = document.createElement('div');
-            contentDiv.classList.add('msg-content');
-            
-            const userDiv = document.createElement('div');
-            userDiv.classList.add('msg-user');
-            userDiv.textContent = msg.data.user;
-            
-            const textDiv = document.createElement('div');
-            textDiv.textContent = msg.data.text;
-            
-            contentDiv.appendChild(userDiv);
-            contentDiv.appendChild(textDiv);
-            
-            msgDiv.appendChild(avatarDiv);
-            msgDiv.appendChild(contentDiv);
-            
-            chatBox.appendChild(msgDiv);
+            const div = document.createElement('div');
+            div.className = 'msg';
+            div.innerHTML = `
+                <div class="avatar" style="background: ${msg.data.color || '#0084ff'}">
+                    ${msg.data.user ? msg.data.user[0].toUpperCase() : 'A'}
+                </div>
+                <div>
+                    <strong>${msg.data.user}:</strong> ${msg.data.text}
+                </div>
+            `;
+            chatBox.appendChild(div);
             chatBox.scrollTop = chatBox.scrollHeight;
         });
-
-        // Send message function
+        
+        // Send message
         function sendMessage() {
             const text = messageInput.value;
             const user = nameInput.value || 'Anonymous';
             
-            if (text.trim() !== "") {
-                const messageData = { 
-                    text: text, 
+            if(text.trim()) {
+                channel.publish('message', {
+                    text: text,
                     user: user,
-                    avatar: currentProfilePicture || 'default:0'
-                };
+                    color: getColorFromName(user)
+                });
                 
-                channel.publish('message', messageData);
-                
-                // Save profile info
-                saveProfilePictureToStorage();
+                // Save name
+                localStorage.setItem('chatName', user);
                 
                 messageInput.value = '';
                 messageInput.focus();
             }
         }
-
-        // Allow pressing "Enter" to send
-        messageInput.addEventListener("keypress", (e) => {
-            if (e.key === "Enter") sendMessage();
+        
+        // Enter to send
+        messageInput.addEventListener('keypress', (e) => {
+            if(e.key === 'Enter') sendMessage();
         });
-
-        // Close modal when clicking outside
-        window.addEventListener('click', (e) => {
-            if (e.target === profileModal) {
-                closeProfileModal();
-            }
-        });
+        
+        // Helper function
+        function getColorFromName(name) {
+            const colors = ['#0084ff', '#ff6b6b', '#4CAF50', '#FF9800', '#9C27B0'];
+            const index = name.length % colors.length;
+            return colors[index];
+        }
     </script>
 </body>
 </html>
