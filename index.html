@@ -4,6 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Global Chat Room</title>
+    <!-- Firebase -->
+    <script src="https://www.gstatic.com/firebasejs/9.6.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.0/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.0/firebase-firestore.js"></script>
+    <!-- Ably -->
     <script src="https://cdn.ably.com/lib/ably.min-1.js"></script>
     <style>
         /* Reset & Base */
@@ -14,7 +19,7 @@
         }
         
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             height: 100vh;
             display: flex;
@@ -23,7 +28,7 @@
             padding: 20px;
         }
         
-        /* Auth Screen */
+        /* Auth Container */
         .auth-container {
             background: white;
             padding: 30px;
@@ -42,12 +47,12 @@
         
         .auth-subtitle {
             color: #666;
-            margin-bottom: 30px;
+            margin-bottom: 25px;
         }
         
         .auth-tabs {
             display: flex;
-            margin-bottom: 25px;
+            margin-bottom: 20px;
             border-bottom: 2px solid #eee;
         }
         
@@ -77,7 +82,7 @@
         }
         
         .form-group {
-            margin-bottom: 20px;
+            margin-bottom: 18px;
             text-align: left;
         }
         
@@ -102,6 +107,25 @@
             border-color: #0084ff;
         }
         
+        .form-input.error {
+            border-color: #ff4444;
+        }
+        
+        .char-count {
+            font-size: 12px;
+            color: #666;
+            text-align: right;
+            margin-top: 5px;
+        }
+        
+        .char-count.warning {
+            color: #ff9800;
+        }
+        
+        .char-count.error {
+            color: #ff4444;
+        }
+        
         .auth-btn {
             width: 100%;
             padding: 14px;
@@ -115,8 +139,24 @@
             transition: transform 0.2s;
         }
         
-        .auth-btn:hover {
+        .auth-btn:hover:not(:disabled) {
             transform: translateY(-2px);
+        }
+        
+        .auth-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        /* Error Messages */
+        .error-message {
+            background: #ffebee;
+            color: #c62828;
+            padding: 10px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            text-align: center;
+            display: none;
         }
         
         /* Chat Container */
@@ -136,36 +176,49 @@
         .chat-header {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
-            padding: 20px;
+            padding: 18px;
             display: flex;
             justify-content: space-between;
             align-items: center;
         }
         
         .chat-title {
-            font-size: 22px;
+            font-size: 20px;
             font-weight: bold;
         }
         
         .user-info {
             display: flex;
             align-items: center;
-            gap: 15px;
+            gap: 12px;
+        }
+        
+        .current-user {
+            background: rgba(255,255,255,0.2);
+            padding: 6px 12px;
+            border-radius: 15px;
+            font-size: 14px;
         }
         
         .online-counter {
             background: rgba(255,255,255,0.2);
-            padding: 8px 15px;
-            border-radius: 20px;
+            padding: 6px 12px;
+            border-radius: 15px;
             font-size: 14px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        
+        .online-counter:hover {
+            background: rgba(255,255,255,0.3);
         }
         
         .logout-btn {
             background: rgba(255,255,255,0.2);
             color: white;
             border: none;
-            padding: 8px 15px;
-            border-radius: 20px;
+            padding: 6px 12px;
+            border-radius: 15px;
             cursor: pointer;
             font-size: 14px;
             transition: background 0.3s;
@@ -186,7 +239,7 @@
         .message {
             display: flex;
             gap: 12px;
-            margin-bottom: 20px;
+            margin-bottom: 16px;
             animation: fadeIn 0.3s;
         }
         
@@ -196,15 +249,15 @@
         }
         
         .message-avatar {
-            width: 45px;
-            height: 45px;
+            width: 42px;
+            height: 42px;
             border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
             color: white;
             font-weight: bold;
-            font-size: 18px;
+            font-size: 16px;
             flex-shrink: 0;
         }
         
@@ -215,8 +268,8 @@
         .message-header {
             display: flex;
             align-items: baseline;
-            gap: 10px;
-            margin-bottom: 5px;
+            gap: 8px;
+            margin-bottom: 4px;
         }
         
         .message-username {
@@ -225,31 +278,33 @@
         }
         
         .message-time {
-            font-size: 12px;
+            font-size: 11px;
             color: #888;
         }
         
         .message-text {
             background: white;
-            padding: 12px 15px;
+            padding: 10px 14px;
             border-radius: 15px;
             border-top-left-radius: 0;
             box-shadow: 0 2px 5px rgba(0,0,0,0.05);
             word-break: break-word;
+            line-height: 1.4;
         }
         
         /* Input Area */
         .chat-input-area {
-            padding: 20px;
+            padding: 18px;
             background: white;
             border-top: 2px solid #eee;
             display: flex;
             gap: 10px;
+            align-items: center;
         }
         
         .message-input {
             flex: 1;
-            padding: 14px;
+            padding: 12px 18px;
             border: 2px solid #e0e0e0;
             border-radius: 25px;
             font-size: 16px;
@@ -262,7 +317,7 @@
         }
         
         .send-btn {
-            padding: 14px 30px;
+            padding: 12px 25px;
             background: linear-gradient(135deg, #0084ff 0%, #00c6ff 100%);
             color: white;
             border: none;
@@ -273,8 +328,13 @@
             transition: transform 0.2s;
         }
         
-        .send-btn:hover {
+        .send-btn:hover:not(:disabled) {
             transform: translateY(-2px);
+        }
+        
+        .send-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
         }
         
         /* Online Users Sidebar */
@@ -290,13 +350,25 @@
             max-height: 80vh;
             overflow-y: auto;
             display: none;
+            z-index: 1000;
         }
         
         .online-title {
             font-weight: bold;
             margin-bottom: 15px;
             color: #333;
-            font-size: 18px;
+            font-size: 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .close-users {
+            background: none;
+            border: none;
+            font-size: 20px;
+            cursor: pointer;
+            color: #666;
         }
         
         .user-item {
@@ -304,7 +376,7 @@
             align-items: center;
             gap: 10px;
             padding: 8px;
-            border-radius: 10px;
+            border-radius: 8px;
             transition: background 0.3s;
         }
         
@@ -313,22 +385,23 @@
         }
         
         .user-avatar {
-            width: 35px;
-            height: 35px;
+            width: 32px;
+            height: 32px;
             border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
             color: white;
             font-weight: bold;
-            font-size: 14px;
+            font-size: 13px;
         }
         
         .user-name {
             color: #333;
+            font-size: 14px;
         }
         
-        /* Mobile Responsive */
+        /* Mobile */
         @media (max-width: 768px) {
             .auth-container {
                 padding: 20px;
@@ -342,9 +415,9 @@
                 font-size: 18px;
             }
             
-            .online-counter {
+            .current-user, .online-counter, .logout-btn {
                 font-size: 12px;
-                padding: 6px 12px;
+                padding: 5px 10px;
             }
             
             .chat-messages {
@@ -352,40 +425,38 @@
             }
             
             .message {
-                gap: 8px;
+                gap: 10px;
             }
             
             .message-avatar {
-                width: 40px;
-                height: 40px;
-                font-size: 16px;
+                width: 38px;
+                height: 38px;
+                font-size: 15px;
             }
             
             .chat-input-area {
                 padding: 15px;
             }
             
+            .message-input {
+                padding: 10px 15px;
+            }
+            
+            .send-btn {
+                padding: 10px 20px;
+            }
+            
             .online-users {
                 position: fixed;
-                top: auto;
-                bottom: 0;
+                top: 0;
                 left: 0;
                 right: 0;
+                bottom: 0;
                 width: 100%;
-                max-height: 50vh;
-                border-radius: 20px 20px 0 0;
+                max-height: 100vh;
+                border-radius: 0;
+                padding: 60px 20px 20px;
             }
-        }
-        
-        /* Error Messages */
-        .error-message {
-            background: #ffebee;
-            color: #c62828;
-            padding: 10px;
-            border-radius: 8px;
-            margin-bottom: 15px;
-            text-align: center;
-            display: none;
         }
         
         /* Loading */
@@ -396,12 +467,12 @@
             font-style: italic;
         }
         
-        /* History Divider */
+        /* Divider */
         .history-divider {
             text-align: center;
             color: #888;
             padding: 15px;
-            font-size: 14px;
+            font-size: 13px;
             position: relative;
         }
         
@@ -410,7 +481,7 @@
             content: "";
             position: absolute;
             top: 50%;
-            width: 40%;
+            width: 35%;
             height: 1px;
             background: #ddd;
         }
@@ -425,7 +496,7 @@
     </style>
 </head>
 <body>
-    <!-- Authentication Screen -->
+    <!-- Auth Screen -->
     <div class="auth-container" id="auth-screen">
         <h1 class="auth-title">Global Chat Room</h1>
         <p class="auth-subtitle">Chat with people around the world</p>
@@ -436,42 +507,48 @@
         </div>
         
         <!-- Login Form -->
-        <form class="auth-form active" id="login-form">
+        <form class="auth-form active" id="login-form" onsubmit="login(event)">
             <div class="error-message" id="login-error"></div>
             
             <div class="form-group">
                 <label class="form-label">Username</label>
-                <input type="text" class="form-input" id="login-username" placeholder="Enter username" required>
+                <input type="text" class="form-input" id="login-username" 
+                       placeholder="Enter username" required maxlength="10">
             </div>
             
             <div class="form-group">
                 <label class="form-label">Password</label>
-                <input type="password" class="form-input" id="login-password" placeholder="Enter password" required>
+                <input type="password" class="form-input" id="login-password" 
+                       placeholder="Enter password" required minlength="4">
             </div>
             
-            <button type="submit" class="auth-btn" onclick="login(event)">Login</button>
+            <button type="submit" class="auth-btn" id="login-btn">Login</button>
         </form>
         
         <!-- Register Form -->
-        <form class="auth-form" id="register-form">
+        <form class="auth-form" id="register-form" onsubmit="register(event)">
             <div class="error-message" id="register-error"></div>
             
             <div class="form-group">
                 <label class="form-label">Username</label>
-                <input type="text" class="form-input" id="register-username" placeholder="Choose username" required>
+                <input type="text" class="form-input" id="register-username" 
+                       placeholder="3-10 characters" required minlength="3" maxlength="10">
+                <div class="char-count" id="username-count">0/10</div>
             </div>
             
             <div class="form-group">
                 <label class="form-label">Password</label>
-                <input type="password" class="form-input" id="register-password" placeholder="Create password" required>
+                <input type="password" class="form-input" id="register-password" 
+                       placeholder="At least 4 characters" required minlength="4">
             </div>
             
             <div class="form-group">
                 <label class="form-label">Confirm Password</label>
-                <input type="password" class="form-input" id="register-confirm" placeholder="Confirm password" required>
+                <input type="password" class="form-input" id="register-confirm" 
+                       placeholder="Confirm password" required>
             </div>
             
-            <button type="submit" class="auth-btn" onclick="register(event)">Create Account</button>
+            <button type="submit" class="auth-btn" id="register-btn">Create Account</button>
         </form>
     </div>
     
@@ -480,6 +557,7 @@
         <div class="chat-header">
             <div class="chat-title">💬 Global Chat Room</div>
             <div class="user-info">
+                <div class="current-user" id="current-user-display"></div>
                 <div class="online-counter" id="online-counter">👥 1 online</div>
                 <button class="logout-btn" onclick="logout()">Logout</button>
             </div>
@@ -490,29 +568,49 @@
         </div>
         
         <div class="chat-input-area">
-            <input type="text" class="message-input" id="message-input" placeholder="Type a message..." autocomplete="off">
-            <button class="send-btn" onclick="sendMessage()">Send</button>
+            <input type="text" class="message-input" id="message-input" 
+                   placeholder="Type a message..." autocomplete="off">
+            <button class="send-btn" onclick="sendMessage()" id="send-btn">Send</button>
         </div>
     </div>
     
     <!-- Online Users Sidebar -->
     <div class="online-users" id="online-users">
-        <div class="online-title">👥 Online Users</div>
+        <div class="online-title">
+            <span>👥 Online Users</span>
+            <button class="close-users" onclick="closeUsersList()">×</button>
+        </div>
         <div id="users-list"></div>
     </div>
 
     <script>
-        // ========== CONFIGURATION ==========
+        // ========== FIREBASE CONFIGURATION ==========
+        // ✅ YOUR EXACT CONFIG FROM FIREBASE
+        const firebaseConfig = {
+            apiKey: "A12aSy8z_2--1k[j]JX6Q[puMTK-A2_ca_80L1Y",
+            authDomain: "globalchetroom-4bb84.firebaseapp.com",
+            projectId: "globalchetroom-4bb84",
+            storageBucket: "globalchetroom-4bb84.firebasestorage.app",
+            messagingSenderId: "e11522013598",
+            appId: "i:e11522013598.web:e2136c90e06fc447087e8f",
+            measurementId: "0-6C4L0JCG8"
+        };
+        
+        // ========== ABLY CONFIGURATION ==========
         const ABLY_API_KEY = 'durKGQ.WtBhaA:gNEegxAlZu388_eElwwtvTWwIIkli3Y-A2uAxVQqnPE';
-        const CHANNEL_NAME = 'global-chat-v3';
+        const CHANNEL_NAME = 'global-chat-v4';
         
         // ========== GLOBAL VARIABLES ==========
+        let firebaseApp = null;
+        let auth = null;
+        let db = null;
         let ably = null;
         let channel = null;
         let currentUser = null;
-        let onlineUsers = new Map(); // Store online users
+        let userColor = null;
+        let lastMessageId = null;
         
-        // ========== COLORS FOR AVATARS ==========
+        // Avatar colors
         const avatarColors = [
             '#0084ff', '#ff6b6b', '#4CAF50', '#FF9800',
             '#9C27B0', '#607D8B', '#00BCD4', '#8BC34A',
@@ -521,36 +619,84 @@
         
         // ========== INITIALIZATION ==========
         document.addEventListener('DOMContentLoaded', function() {
-            // Check if user is already logged in
-            checkExistingLogin();
+            // Initialize Firebase
+            initializeFirebase();
             
-            // Setup form submissions
-            document.getElementById('login-form').addEventListener('submit', login);
-            document.getElementById('register-form').addEventListener('submit', register);
+            // Setup username character counter
+            setupUsernameCounter();
             
-            // Enter key to send message
+            // Check if already logged in
+            checkAuthState();
+            
+            // Setup enter key for sending
             document.getElementById('message-input').addEventListener('keypress', function(e) {
-                if (e.key === 'Enter') sendMessage();
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    sendMessage();
+                }
             });
             
-            // Toggle online users list when clicking online counter
-            document.getElementById('online-counter').addEventListener('click', function() {
-                const sidebar = document.getElementById('online-users');
-                sidebar.style.display = sidebar.style.display === 'block' ? 'none' : 'block';
-            });
+            // Toggle online users list
+            document.getElementById('online-counter').addEventListener('click', showUsersList);
         });
         
-        // ========== AUTHENTICATION FUNCTIONS ==========
-        function checkExistingLogin() {
-            const savedUser = localStorage.getItem('chatUser');
-            if (savedUser) {
-                currentUser = JSON.parse(savedUser);
-                startChat();
+        function initializeFirebase() {
+            try {
+                // Fix for Firebase already initialized
+                if (!firebase.apps.length) {
+                    firebaseApp = firebase.initializeApp(firebaseConfig);
+                } else {
+                    firebaseApp = firebase.app();
+                }
+                auth = firebase.auth();
+                db = firebase.firestore();
+                console.log('Firebase initialized successfully');
+            } catch (error) {
+                console.error('Firebase initialization error:', error);
+                showError('login-error', 'Failed to initialize chat service. Please refresh.');
             }
         }
         
+        function setupUsernameCounter() {
+            const usernameInput = document.getElementById('register-username');
+            const charCount = document.getElementById('username-count');
+            
+            usernameInput.addEventListener('input', function() {
+                const length = this.value.length;
+                charCount.textContent = `${length}/10`;
+                
+                charCount.className = 'char-count';
+                if (length > 8) {
+                    charCount.classList.add('warning');
+                }
+                if (length > 10) {
+                    charCount.classList.add('error');
+                    this.value = this.value.substring(0, 10);
+                }
+            });
+        }
+        
+        // ========== AUTHENTICATION FUNCTIONS ==========
+        function checkAuthState() {
+            if (!auth) return;
+            
+            auth.onAuthStateChanged((user) => {
+                if (user) {
+                    currentUser = {
+                        uid: user.uid,
+                        username: user.displayName || 'User',
+                        email: user.email
+                    };
+                    
+                    getUserColor(user.uid).then(color => {
+                        userColor = color;
+                        startChat();
+                    });
+                }
+            });
+        }
+        
         function showForm(formType) {
-            // Update tabs
             document.querySelectorAll('.auth-tab').forEach(tab => {
                 tab.classList.remove('active');
             });
@@ -558,7 +704,6 @@
                 form.classList.remove('active');
             });
             
-            // Show selected form
             if (formType === 'login') {
                 document.querySelector('.auth-tab:nth-child(1)').classList.add('active');
                 document.getElementById('login-form').classList.add('active');
@@ -566,76 +711,73 @@
                 document.querySelector('.auth-tab:nth-child(2)').classList.add('active');
                 document.getElementById('register-form').classList.add('active');
             }
+            
+            clearErrors();
         }
         
-        function login(event) {
+        async function login(event) {
             event.preventDefault();
             
             const username = document.getElementById('login-username').value.trim();
             const password = document.getElementById('login-password').value;
             const errorEl = document.getElementById('login-error');
+            const loginBtn = document.getElementById('login-btn');
             
-            // Clear error
-            errorEl.style.display = 'none';
+            clearError(errorEl);
             
-            // Validate
             if (!username || !password) {
                 showError(errorEl, 'Please fill in all fields');
                 return;
             }
             
-            // Check if user exists
-            const users = JSON.parse(localStorage.getItem('chatUsers') || '{}');
-            const user = users[username];
-            
-            if (!user) {
-                showError(errorEl, 'User does not exist');
+            if (username.length < 3 || username.length > 10) {
+                showError(errorEl, 'Username must be 3-10 characters');
                 return;
             }
             
-            if (user.password !== hashPassword(password)) {
-                showError(errorEl, 'Incorrect password');
-                return;
+            loginBtn.disabled = true;
+            loginBtn.textContent = 'Logging in...';
+            
+            try {
+                const email = `${username.toLowerCase()}@chat.com`;
+                await auth.signInWithEmailAndPassword(email, password);
+                console.log('Login successful');
+            } catch (error) {
+                console.error('Login error:', error);
+                
+                let errorMessage = 'Login failed';
+                if (error.code === 'auth/user-not-found') {
+                    errorMessage = 'Account does not exist';
+                } else if (error.code === 'auth/wrong-password') {
+                    errorMessage = 'Incorrect password';
+                } else if (error.code === 'auth/too-many-requests') {
+                    errorMessage = 'Too many attempts. Try again later';
+                }
+                
+                showError(errorEl, errorMessage);
+                loginBtn.disabled = false;
+                loginBtn.textContent = 'Login';
             }
-            
-            // Login successful
-            currentUser = {
-                username: username,
-                color: user.color || getColorFromName(username),
-                joined: new Date().toISOString()
-            };
-            
-            // Save to localStorage
-            localStorage.setItem('chatUser', JSON.stringify(currentUser));
-            
-            // Start chat
-            startChat();
         }
         
-        function register(event) {
+        async function register(event) {
             event.preventDefault();
             
             const username = document.getElementById('register-username').value.trim();
             const password = document.getElementById('register-password').value;
             const confirmPassword = document.getElementById('register-confirm').value;
             const errorEl = document.getElementById('register-error');
+            const registerBtn = document.getElementById('register-btn');
             
-            // Clear error
-            errorEl.style.display = 'none';
+            clearError(errorEl);
             
-            // Validate
-            if (!username || !password) {
+            if (!username || !password || !confirmPassword) {
                 showError(errorEl, 'Please fill in all fields');
                 return;
             }
             
-            if (password !== confirmPassword) {
-                showError(errorEl, 'Passwords do not match');
-                return;
-            }
-            
-            if (username.length < 3) {
-                showError(errorEl, 'Username must be at least 3 characters');
+            if (username.length < 3 || username.length > 10) {
+                showError(errorEl, 'Username must be 3-10 characters');
                 return;
             }
             
@@ -644,147 +786,250 @@
                 return;
             }
             
-            // Check if user already exists
-            let users = JSON.parse(localStorage.getItem('chatUsers') || '{}');
-            
-            if (users[username]) {
-                showError(errorEl, 'Username already taken');
+            if (password !== confirmPassword) {
+                showError(errorEl, 'Passwords do not match');
                 return;
             }
             
-            // Create new user
-            users[username] = {
-                password: hashPassword(password),
-                color: getColorFromName(username),
-                createdAt: new Date().toISOString()
-            };
-            
-            // Save users
-            localStorage.setItem('chatUsers', JSON.stringify(users));
-            
-            // Auto login
-            currentUser = {
-                username: username,
-                color: users[username].color,
-                joined: new Date().toISOString()
-            };
-            
-            localStorage.setItem('chatUser', JSON.stringify(currentUser));
-            
-            // Start chat
-            startChat();
-        }
-        
-        function logout() {
-            if (channel) {
-                channel.presence.leave();
+            if (!/^[a-zA-Z0-9_]+$/.test(username)) {
+                showError(errorEl, 'Username can only contain letters, numbers, and underscores');
+                return;
             }
             
-            localStorage.removeItem('chatUser');
-            currentUser = null;
-            ably = null;
-            channel = null;
+            registerBtn.disabled = true;
+            registerBtn.textContent = 'Creating account...';
             
-            // Show auth screen
-            document.getElementById('auth-screen').style.display = 'block';
-            document.getElementById('chat-screen').style.display = 'none';
-            document.getElementById('online-users').style.display = 'none';
+            try {
+                const usernameSnapshot = await db.collection('usernames')
+                    .doc(username.toLowerCase())
+                    .get();
+                
+                if (usernameSnapshot.exists) {
+                    throw new Error('Username already taken');
+                }
+                
+                const email = `${username.toLowerCase()}@chat.com`;
+                const userCredential = await auth.createUserWithEmailAndPassword(email, password);
+                
+                await userCredential.user.updateProfile({
+                    displayName: username
+                });
+                
+                const color = getColorFromName(username);
+                
+                await db.collection('users').doc(userCredential.user.uid).set({
+                    username: username,
+                    color: color,
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                });
+                
+                await db.collection('usernames').doc(username.toLowerCase()).set({
+                    uid: userCredential.user.uid,
+                    reservedAt: firebase.firestore.FieldValue.serverTimestamp()
+                });
+                
+                console.log('Registration successful');
+            } catch (error) {
+                console.error('Registration error:', error);
+                
+                let errorMessage = 'Registration failed';
+                if (error.code === 'auth/email-already-in-use' || error.message === 'Username already taken') {
+                    errorMessage = 'Username already taken';
+                } else if (error.code === 'auth/weak-password') {
+                    errorMessage = 'Password is too weak';
+                }
+                
+                showError(errorEl, errorMessage);
+                registerBtn.disabled = false;
+                registerBtn.textContent = 'Create Account';
+            }
+        }
+        
+        async function logout() {
+            try {
+                if (channel) {
+                    await channel.presence.leave();
+                }
+                
+                await auth.signOut();
+                
+                currentUser = null;
+                userColor = null;
+                lastMessageId = null;
+                
+                if (ably) {
+                    ably.close();
+                }
+                
+                document.getElementById('auth-screen').style.display = 'block';
+                document.getElementById('chat-screen').style.display = 'none';
+                document.getElementById('online-users').style.display = 'none';
+                
+                document.getElementById('chat-messages').innerHTML = 
+                    '<div class="loading" id="loading">Loading messages...</div>';
+                
+                document.getElementById('message-input').value = '';
+                clearErrors();
+                
+                console.log('Logout successful');
+            } catch (error) {
+                console.error('Logout error:', error);
+            }
         }
         
         // ========== CHAT FUNCTIONS ==========
-        function startChat() {
-            // Switch to chat screen
+        async function startChat() {
             document.getElementById('auth-screen').style.display = 'none';
             document.getElementById('chat-screen').style.display = 'flex';
             
-            // Initialize Ably
-            ably = new Ably.Realtime(ABLY_API_KEY);
-            channel = ably.channels.get(CHANNEL_NAME);
+            document.getElementById('current-user-display').textContent = 
+                `👤 ${currentUser.username}`;
             
-            // Enter presence with user info
-            channel.presence.enter({
-                username: currentUser.username,
-                color: currentUser.color,
-                userId: generateUserId()
-            });
-            
-            // Subscribe to messages
-            channel.subscribe('message', handleMessage);
-            
-            // Subscribe to presence changes
-            channel.presence.subscribe(['enter', 'leave', 'update'], handlePresence);
-            
-            // Load message history
+            initializeAbly();
             loadMessageHistory();
             
-            // Get current online users
-            channel.presence.get(function(err, members) {
-                if (!err) {
-                    updateOnlineUsers(members);
-                }
-            });
-            
-            // Focus message input
             setTimeout(() => {
                 document.getElementById('message-input').focus();
             }, 100);
         }
         
+        function initializeAbly() {
+            ably = new Ably.Realtime(ABLY_API_KEY);
+            channel = ably.channels.get(CHANNEL_NAME);
+            
+            channel.presence.enter({
+                uid: currentUser.uid,
+                username: currentUser.username,
+                color: userColor
+            });
+            
+            channel.subscribe('message', (msg) => {
+                if (msg.data.uid === currentUser.uid && msg.data.messageId === lastMessageId) {
+                    return;
+                }
+                handleMessage(msg.data);
+            });
+            
+            channel.presence.subscribe(['enter', 'leave'], handlePresence);
+            
+            channel.presence.get((err, members) => {
+                if (!err) {
+                    updateOnlineUsers(members);
+                }
+            });
+        }
+        
+        async function getUserColor(uid) {
+            try {
+                const userDoc = await db.collection('users').doc(uid).get();
+                if (userDoc.exists) {
+                    return userDoc.data().color || getColorFromName(currentUser.username);
+                }
+            } catch (error) {
+                console.error('Error getting user color:', error);
+            }
+            return getColorFromName(currentUser.username);
+        }
+        
         function loadMessageHistory() {
-            const savedHistory = localStorage.getItem('chatHistory') || '[]';
-            const history = JSON.parse(savedHistory);
-            
-            // Display history
-            const chatMessages = document.getElementById('chat-messages');
-            chatMessages.innerHTML = '';
-            
-            if (history.length > 0) {
-                // Add history divider
-                const divider = document.createElement('div');
-                divider.className = 'history-divider';
-                divider.textContent = 'Earlier messages';
-                chatMessages.appendChild(divider);
-                
-                // Display messages
-                history.slice(-50).forEach(msg => {
-                    displayMessage(msg, true);
+            db.collection('messages')
+                .orderBy('timestamp', 'desc')
+                .limit(50)
+                .get()
+                .then((snapshot) => {
+                    const chatMessages = document.getElementById('chat-messages');
+                    chatMessages.innerHTML = '';
+                    
+                    if (!snapshot.empty) {
+                        const divider = document.createElement('div');
+                        divider.className = 'history-divider';
+                        divider.textContent = 'Earlier messages';
+                        chatMessages.appendChild(divider);
+                        
+                        const messages = [];
+                        snapshot.forEach(doc => {
+                            messages.unshift(doc.data());
+                        });
+                        
+                        messages.forEach(msg => {
+                            displayMessage(msg, true);
+                        });
+                    } else {
+                        const welcome = document.createElement('div');
+                        welcome.className = 'message';
+                        welcome.innerHTML = `
+                            <div class="message-avatar" style="background: #667eea">👋</div>
+                            <div class="message-content">
+                                <div class="message-header">
+                                    <span class="message-username">Welcome!</span>
+                                </div>
+                                <div class="message-text">
+                                    Welcome to Global Chat Room! Start chatting with people around the world.
+                                </div>
+                            </div>
+                        `;
+                        chatMessages.appendChild(welcome);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error loading history:', error);
                 });
-            } else {
-                const welcome = document.createElement('div');
-                welcome.className = 'message';
-                welcome.innerHTML = `
-                    <div class="message-avatar" style="background: #667eea">👋</div>
-                    <div class="message-content">
-                        <div class="message-header">
-                            <span class="message-username">Welcome!</span>
-                        </div>
-                        <div class="message-text">
-                            Welcome to Global Chat Room! Start chatting with people around the world.
-                        </div>
-                    </div>
-                `;
-                chatMessages.appendChild(welcome);
+        }
+        
+        async function sendMessage() {
+            const input = document.getElementById('message-input');
+            const text = input.value.trim();
+            const sendBtn = document.getElementById('send-btn');
+            
+            if (!text || !currentUser) return;
+            
+            sendBtn.disabled = true;
+            sendBtn.textContent = 'Sending...';
+            
+            const messageId = generateMessageId();
+            lastMessageId = messageId;
+            
+            const message = {
+                text: text,
+                username: currentUser.username,
+                uid: currentUser.uid,
+                color: userColor,
+                timestamp: Date.now(),
+                messageId: messageId
+            };
+            
+            try {
+                await db.collection('messages').add({
+                    ...message,
+                    serverTimestamp: firebase.firestore.FieldValue.serverTimestamp()
+                });
+                
+                channel.publish('message', message);
+                
+                displayMessage(message, false);
+                
+                input.value = '';
+                input.focus();
+                sendBtn.disabled = false;
+                sendBtn.textContent = 'Send';
+                
+            } catch (error) {
+                console.error('Error sending message:', error);
+                sendBtn.disabled = false;
+                sendBtn.textContent = 'Send';
+                alert('Failed to send message. Please try again.');
             }
         }
         
         function handleMessage(message) {
-            const msgData = message.data;
-            
-            // Add timestamp if not present
-            if (!msgData.timestamp) {
-                msgData.timestamp = Date.now();
+            if (message.uid === currentUser.uid && message.messageId === lastMessageId) {
+                return;
             }
-            
-            // Save to history
-            saveMessageToHistory(msgData);
-            
-            // Display message
-            displayMessage(msgData, false);
+            displayMessage(message, false);
         }
         
         function handlePresence(presenceMsg) {
-            // Get updated list of online users
-            channel.presence.get(function(err, members) {
+            channel.presence.get((err, members) => {
                 if (!err) {
                     updateOnlineUsers(members);
                 }
@@ -792,27 +1037,25 @@
         }
         
         function updateOnlineUsers(members) {
-            onlineUsers.clear();
-            const usersList = document.getElementById('users-list');
-            usersList.innerHTML = '';
-            
-            // Count unique users (by username)
             const uniqueUsers = new Map();
+            const usersList = document.getElementById('users-list');
             
             members.forEach(member => {
-                const username = member.data.username || 'Anonymous';
+                const username = member.data.username || 'Unknown';
                 const color = member.data.color || getColorFromName(username);
                 
                 if (!uniqueUsers.has(username)) {
-                    uniqueUsers.set(username, { color, clientId: member.clientId });
+                    uniqueUsers.set(username, { 
+                        color: color,
+                        isCurrent: username === currentUser.username 
+                    });
                 }
             });
             
-            // Update counter
             const onlineCount = uniqueUsers.size;
             document.getElementById('online-counter').textContent = `👥 ${onlineCount} online`;
             
-            // Update users list
+            usersList.innerHTML = '';
             uniqueUsers.forEach((userData, username) => {
                 const userItem = document.createElement('div');
                 userItem.className = 'user-item';
@@ -820,39 +1063,33 @@
                     <div class="user-avatar" style="background: ${userData.color}">
                         ${username[0].toUpperCase()}
                     </div>
-                    <div class="user-name">${username} ${username === currentUser.username ? '(You)' : ''}</div>
+                    <div class="user-name">
+                        ${username} ${userData.isCurrent ? '(You)' : ''}
+                    </div>
                 `;
                 usersList.appendChild(userItem);
             });
-            
-            // Store for quick access
-            onlineUsers = uniqueUsers;
         }
         
         function displayMessage(message, isHistory) {
             const chatMessages = document.getElementById('chat-messages');
             
-            // Remove loading message if present
             const loadingEl = document.getElementById('loading');
             if (loadingEl) loadingEl.remove();
             
             const messageDiv = document.createElement('div');
             messageDiv.className = 'message';
             
-            // Get user color
-            const userColor = message.color || getColorFromName(message.user);
-            const firstLetter = message.user ? message.user[0].toUpperCase() : 'A';
-            
-            // Format time
             const time = formatTime(message.timestamp);
+            const firstLetter = message.username ? message.username[0].toUpperCase() : 'U';
             
             messageDiv.innerHTML = `
-                <div class="message-avatar" style="background: ${userColor}">
+                <div class="message-avatar" style="background: ${message.color || '#0084ff'}">
                     ${firstLetter}
                 </div>
                 <div class="message-content">
                     <div class="message-header">
-                        <span class="message-username">${message.user || 'Anonymous'}</span>
+                        <span class="message-username">${message.username || 'Unknown'}</span>
                         <span class="message-time">${time}</span>
                     </div>
                     <div class="message-text">${escapeHtml(message.text)}</div>
@@ -861,55 +1098,45 @@
             
             chatMessages.appendChild(messageDiv);
             
-            // Scroll to bottom for new messages
             if (!isHistory) {
-                chatMessages.scrollTop = chatMessages.scrollHeight;
+                setTimeout(() => {
+                    chatMessages.scrollTop = chatMessages.scrollHeight;
+                }, 100);
             }
         }
         
-        function sendMessage() {
-            const input = document.getElementById('message-input');
-            const text = input.value.trim();
-            
-            if (!text || !currentUser) return;
-            
-            const message = {
-                text: text,
-                user: currentUser.username,
-                color: currentUser.color,
-                timestamp: Date.now(),
-                userId: generateUserId()
-            };
-            
-            // Publish to channel
-            channel.publish('message', message);
-            
-            // Save to history
-            saveMessageToHistory(message);
-            
-            // Clear input
-            input.value = '';
-            input.focus();
+        // ========== UI FUNCTIONS ==========
+        function showUsersList() {
+            document.getElementById('online-users').style.display = 'block';
         }
         
-        function saveMessageToHistory(message) {
-            let history = JSON.parse(localStorage.getItem('chatHistory') || '[]');
-            
-            // Add message
-            history.push(message);
-            
-            // Keep only last 100 messages
-            if (history.length > 100) {
-                history = history.slice(-100);
-            }
-            
-            // Save back
-            localStorage.setItem('chatHistory', JSON.stringify(history));
+        function closeUsersList() {
+            document.getElementById('online-users').style.display = 'none';
+        }
+        
+        function clearErrors() {
+            document.querySelectorAll('.error-message').forEach(el => {
+                el.style.display = 'none';
+                el.textContent = '';
+            });
+            document.querySelectorAll('.form-input').forEach(input => {
+                input.classList.remove('error');
+            });
+        }
+        
+        function clearError(element) {
+            element.style.display = 'none';
+            element.textContent = '';
+        }
+        
+        function showError(element, message) {
+            element.textContent = message;
+            element.style.display = 'block';
         }
         
         // ========== UTILITY FUNCTIONS ==========
-        function generateUserId() {
-            return 'user_' + Math.random().toString(36).substr(2, 9);
+        function generateMessageId() {
+            return Date.now().toString(36) + Math.random().toString(36).substr(2);
         }
         
         function getColorFromName(name) {
@@ -921,39 +1148,17 @@
         }
         
         function formatTime(timestamp) {
+            if (!timestamp) return 'Just now';
+            
             const date = new Date(timestamp);
             const now = new Date();
             const diff = now - date;
             
-            // Less than 24 hours: show time
-            if (diff < 24 * 60 * 60 * 1000) {
-                return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-            }
-            // Less than 7 days: show day
-            else if (diff < 7 * 24 * 60 * 60 * 1000) {
-                const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-                return days[date.getDay()];
-            }
-            // Older: show date
-            else {
-                return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
-            }
-        }
-        
-        function hashPassword(password) {
-            // Simple hash for demo (in production use proper hashing)
-            let hash = 0;
-            for (let i = 0; i < password.length; i++) {
-                const char = password.charCodeAt(i);
-                hash = ((hash << 5) - hash) + char;
-                hash = hash & hash;
-            }
-            return hash.toString(36);
-        }
-        
-        function showError(element, message) {
-            element.textContent = message;
-            element.style.display = 'block';
+            if (diff < 60000) return 'Just now';
+            if (diff < 3600000) return Math.floor(diff / 60000) + 'm ago';
+            if (diff < 86400000) return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            
+            return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
         }
         
         function escapeHtml(text) {
@@ -962,7 +1167,6 @@
             return div.innerHTML;
         }
         
-        // Close online users when clicking outside
         document.addEventListener('click', function(event) {
             const sidebar = document.getElementById('online-users');
             const counter = document.getElementById('online-counter');
@@ -970,24 +1174,7 @@
             if (sidebar.style.display === 'block' && 
                 !sidebar.contains(event.target) && 
                 !counter.contains(event.target)) {
-                sidebar.style.display = 'none';
-            }
-        });
-        
-        // Handle page visibility change
-        document.addEventListener('visibilitychange', function() {
-            if (channel && currentUser) {
-                if (document.hidden) {
-                    // Page is hidden, leave presence
-                    setTimeout(() => channel.presence.leave(), 1000);
-                } else {
-                    // Page is visible, re-enter presence
-                    channel.presence.enter({
-                        username: currentUser.username,
-                        color: currentUser.color,
-                        userId: generateUserId()
-                    });
-                }
+                closeUsersList();
             }
         });
     </script>
