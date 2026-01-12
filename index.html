@@ -6,84 +6,631 @@
     <title>Global Chat Room</title>
     <script src="https://cdn.ably.com/lib/ably.min-1.js"></script>
     <style>
-        body { font-family: sans-serif; margin: 0; background: #f0f2f5; height: 100vh; display: flex; flex-direction: column; }
-        #chat-box { flex: 1; padding: 20px; overflow-y: auto; }
-        .msg { background: white; padding: 10px; margin: 10px 0; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); display: flex; align-items: center; gap: 10px; }
-        .avatar { width: 40px; height: 40px; border-radius: 50%; background: #0084ff; color: white; display: flex; align-items: center; justify-content: center; font-weight: bold; }
-        .input-area { background: white; padding: 20px; display: flex; gap: 10px; align-items: center; }
-        input { padding: 10px; border: 1px solid #ccc; border-radius: 5px; }
-        #username { width: 120px; }
-        #message { flex: 1; }
-        button { padding: 10px 20px; background: #0084ff; color: white; border: none; border-radius: 5px; cursor: pointer; }
+        body { 
+            font-family: sans-serif; 
+            display: flex; 
+            flex-direction: column; 
+            height: 100vh; 
+            margin: 0; 
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        #chat-box { 
+            flex: 1; 
+            overflow-y: auto; 
+            padding: 20px; 
+            background: rgba(255, 255, 255, 0.95);
+        }
+        .msg { 
+            display: flex; 
+            align-items: flex-start;
+            background: white; 
+            padding: 12px 15px; 
+            border-radius: 12px; 
+            margin-bottom: 10px; 
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1); 
+            gap: 12px;
+            animation: fadeIn 0.3s ease-in;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .msg-avatar { 
+            width: 45px; 
+            height: 45px; 
+            border-radius: 50%; 
+            object-fit: cover;
+            flex-shrink: 0;
+            border: 3px solid;
+        }
+        .msg-content {
+            flex: 1;
+        }
+        .msg-user {
+            font-weight: bold;
+            margin-bottom: 5px;
+            color: #333;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .msg-time {
+            font-size: 11px;
+            color: #888;
+            font-weight: normal;
+        }
+        .input-area { 
+            padding: 20px; 
+            background: white; 
+            display: flex; 
+            gap: 12px; 
+            align-items: center;
+            box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
+        }
+        input { 
+            padding: 12px 15px; 
+            border: 2px solid #e0e0e0; 
+            border-radius: 25px; 
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+        input:focus {
+            outline: none;
+            border-color: #0084ff;
+        }
+        #username {
+            width: 130px;
+        }
+        #message {
+            flex: 1;
+        }
+        button { 
+            padding: 12px 25px; 
+            background: linear-gradient(135deg, #0084ff 0%, #00c6ff 100%); 
+            color: white; 
+            border: none; 
+            border-radius: 25px; 
+            cursor: pointer; 
+            font-size: 16px;
+            font-weight: bold;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 132, 255, 0.4);
+        }
+        #profile-section {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        #current-avatar {
+            width: 45px;
+            height: 45px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 3px solid #0084ff;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        #current-avatar:hover {
+            transform: scale(1.1);
+        }
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.7);
+        }
+        .modal-content {
+            background-color: white;
+            margin: 10% auto;
+            padding: 25px;
+            border-radius: 15px;
+            width: 90%;
+            max-width: 500px;
+        }
+        .avatar-options {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(70px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+        .avatar-option {
+            width: 70px;
+            height: 70px;
+            border-radius: 50%;
+            object-fit: cover;
+            cursor: pointer;
+            border: 3px solid transparent;
+            transition: all 0.3s;
+        }
+        .avatar-option:hover, .avatar-option.selected {
+            border-color: #0084ff;
+            transform: scale(1.1);
+        }
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        .close-btn {
+            font-size: 28px;
+            cursor: pointer;
+            color: #666;
+        }
+        .default-avatar {
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            font-size: 20px;
+        }
+        .chat-header {
+            background: white;
+            padding: 15px 20px;
+            border-bottom: 2px solid #e0e0e0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .chat-title {
+            font-size: 20px;
+            font-weight: bold;
+            color: #333;
+        }
+        .user-count {
+            background: #0084ff;
+            color: white;
+            padding: 5px 12px;
+            border-radius: 15px;
+            font-size: 14px;
+        }
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: #666;
+            font-style: italic;
+        }
+        .history-divider {
+            text-align: center;
+            margin: 15px 0;
+            color: #888;
+            font-size: 14px;
+            position: relative;
+        }
+        .history-divider::before {
+            content: "";
+            position: absolute;
+            left: 0;
+            top: 50%;
+            width: 45%;
+            height: 1px;
+            background: #e0e0e0;
+        }
+        .history-divider::after {
+            content: "";
+            position: absolute;
+            right: 0;
+            top: 50%;
+            width: 45%;
+            height: 1px;
+            background: #e0e0e0;
+        }
+        .timestamp {
+            font-size: 11px;
+            color: #999;
+            margin-top: 3px;
+        }
+        .message-container {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+        }
+        .message-text {
+            flex: 1;
+            word-break: break-word;
+        }
     </style>
 </head>
 <body>
-    <div id="chat-box"></div>
+    <div class="chat-header">
+        <div class="chat-title">💬 Global Chat Room</div>
+        <div class="user-count" id="user-count">👥 1 online</div>
+    </div>
+    
+    <div id="chat-box">
+        <div class="loading" id="loading-msg">Loading message history...</div>
+    </div>
+
     <div class="input-area">
-        <input type="text" id="username" placeholder="Your Name">
-        <input type="text" id="message" placeholder="Type message...">
+        <div id="profile-section">
+            <div id="current-avatar" onclick="openProfileModal()"></div>
+            <input type="text" id="username" placeholder="Your Name">
+        </div>
+        <input type="text" id="message" placeholder="Type a message..." autocomplete="off">
         <button onclick="sendMessage()">Send</button>
     </div>
+
+    <!-- Profile Picture Modal -->
+    <div id="profile-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Choose Profile Picture</h2>
+                <span class="close-btn" onclick="closeProfileModal()">&times;</span>
+            </div>
+            
+            <p>Select from default avatars:</p>
+            <div class="avatar-options" id="default-avatars">
+                <!-- Default avatars will be generated by JavaScript -->
+            </div>
+
+            <button onclick="saveProfilePicture()" style="width: 100%; margin-top: 20px; padding: 12px;">Save Profile Picture</button>
+        </div>
+    </div>
+
     <script>
-        // Chat setup
-        const ably = new Ably.Realtime('durKGQ.WtBhaA:gNEegxAlZu388_eElwwtvTWwIIkli3Y-A2uAxVQqnPE');
-        const channel = ably.channels.get('global-chat');
+        // ========== CONFIGURATION ==========
+        const ABLY_API_KEY = 'durKGQ.WtBhaA:gNEegxAlZu388_eElwwtvTWwIIkli3Y-A2uAxVQqnPE';
+        const CHANNEL_NAME = 'global-chat-history';
+        const MAX_HISTORY = 100; // Maximum messages to store
+        
+        // ========== DOM ELEMENTS ==========
         const chatBox = document.getElementById('chat-box');
         const messageInput = document.getElementById('message');
         const nameInput = document.getElementById('username');
+        const currentAvatar = document.getElementById('current-avatar');
+        const userCount = document.getElementById('user-count');
+        const loadingMsg = document.getElementById('loading-msg');
         
-        // Load saved name
-        if(localStorage.getItem('chatName')) {
-            nameInput.value = localStorage.getItem('chatName');
-        }
+        // ========== GLOBAL VARIABLES ==========
+        let ably = null;
+        let channel = null;
+        let messageHistory = [];
+        let currentProfilePicture = null;
+        let userId = generateUserId();
         
-        // Receive messages
-        channel.subscribe('message', (msg) => {
-            const div = document.createElement('div');
-            div.className = 'msg';
-            div.innerHTML = `
-                <div class="avatar" style="background: ${msg.data.color || '#0084ff'}">
-                    ${msg.data.user ? msg.data.user[0].toUpperCase() : 'A'}
-                </div>
-                <div>
-                    <strong>${msg.data.user}:</strong> ${msg.data.text}
-                </div>
-            `;
-            chatBox.appendChild(div);
-            chatBox.scrollTop = chatBox.scrollHeight;
+        // Default avatar colors
+        const defaultAvatars = [
+            { color: '#0084ff', initial: 'A' },
+            { color: '#ff6b6b', initial: 'B' },
+            { color: '#4CAF50', initial: 'C' },
+            { color: '#FF9800', initial: 'D' },
+            { color: '#9C27B0', initial: 'E' },
+            { color: '#607D8B', initial: 'F' },
+            { color: '#00BCD4', initial: 'G' },
+            { color: '#8BC34A', initial: 'H' }
+        ];
+        
+        // ========== INITIALIZATION ==========
+        document.addEventListener('DOMContentLoaded', function() {
+            loadUserProfile();
+            generateDefaultAvatars();
+            initializeChat();
         });
         
-        // Send message
-        function sendMessage() {
-            const text = messageInput.value;
-            const user = nameInput.value || 'Anonymous';
+        // ========== CHAT INITIALIZATION ==========
+        function initializeChat() {
+            ably = new Ably.Realtime(ABLY_API_KEY);
+            channel = ably.channels.get(CHANNEL_NAME);
             
-            if(text.trim()) {
-                channel.publish('message', {
-                    text: text,
-                    user: user,
-                    color: getColorFromName(user)
+            // Load message history first
+            loadMessageHistory();
+            
+            // Subscribe to new messages
+            channel.subscribe('message', handleNewMessage);
+            
+            // Subscribe to presence (user count)
+            channel.presence.subscribe(['enter', 'leave'], updateUserCount);
+            channel.presence.enter({ id: userId, name: nameInput.value || 'Anonymous' });
+            
+            // Send message on Enter key
+            messageInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') sendMessage();
+            });
+        }
+        
+        // ========== MESSAGE HISTORY ==========
+        function loadMessageHistory() {
+            // Check localStorage for saved history
+            const savedHistory = localStorage.getItem('chatHistory');
+            if (savedHistory) {
+                messageHistory = JSON.parse(savedHistory);
+                displayMessageHistory();
+            }
+            
+            // Request history from channel (if supported)
+            try {
+                channel.history({ limit: 50 }, function(err, resultPage) {
+                    if (err) {
+                        console.log('Cannot fetch history:', err);
+                        return;
+                    }
+                    
+                    const historyMessages = resultPage.items.reverse();
+                    if (historyMessages.length > 0) {
+                        // Add divider for history
+                        const divider = document.createElement('div');
+                        divider.className = 'history-divider';
+                        divider.textContent = 'Earlier messages';
+                        chatBox.appendChild(divider);
+                        
+                        // Display history messages
+                        historyMessages.forEach(msg => {
+                            displayMessage(msg.data, true);
+                        });
+                    }
+                    
+                    // Hide loading message
+                    loadingMsg.style.display = 'none';
                 });
-                
-                // Save name
-                localStorage.setItem('chatName', user);
-                
-                messageInput.value = '';
-                messageInput.focus();
+            } catch (e) {
+                console.log('History not available');
+                loadingMsg.style.display = 'none';
             }
         }
         
-        // Enter to send
-        messageInput.addEventListener('keypress', (e) => {
-            if(e.key === 'Enter') sendMessage();
+        function saveToHistory(message) {
+            messageHistory.push(message);
+            
+            // Keep only last MAX_HISTORY messages
+            if (messageHistory.length > MAX_HISTORY) {
+                messageHistory = messageHistory.slice(-MAX_HISTORY);
+            }
+            
+            // Save to localStorage
+            localStorage.setItem('chatHistory', JSON.stringify(messageHistory));
+        }
+        
+        function displayMessageHistory() {
+            if (messageHistory.length > 0) {
+                const divider = document.createElement('div');
+                divider.className = 'history-divider';
+                divider.textContent = 'Your previous messages';
+                chatBox.appendChild(divider);
+                
+                messageHistory.forEach(msg => {
+                    displayMessage(msg, true);
+                });
+            }
+        }
+        
+        // ========== MESSAGE HANDLING ==========
+        function handleNewMessage(msg) {
+            const message = msg.data;
+            message.timestamp = message.timestamp || Date.now();
+            saveToHistory(message);
+            displayMessage(message, false);
+        }
+        
+        function displayMessage(message, isHistory) {
+            const msgDiv = document.createElement('div');
+            msgDiv.className = 'msg';
+            
+            // Set animation for new messages only
+            if (!isHistory) {
+                msgDiv.style.animation = 'fadeIn 0.3s ease-in';
+            }
+            
+            // Create avatar
+            const avatarDiv = document.createElement('div');
+            avatarDiv.className = 'msg-avatar';
+            
+            let avatarColor = '#0084ff';
+            let avatarLetter = message.user ? message.user[0].toUpperCase() : 'A';
+            
+            if (message.avatar && message.avatar.startsWith('default:')) {
+                const index = parseInt(message.avatar.split(':')[1]);
+                const avatar = defaultAvatars[index];
+                if (avatar) {
+                    avatarColor = avatar.color;
+                    avatarLetter = avatar.initial;
+                }
+            } else if (message.color) {
+                avatarColor = message.color;
+            }
+            
+            avatarDiv.style.borderColor = avatarColor;
+            avatarDiv.innerHTML = `
+                <div class="default-avatar" style="background: ${avatarColor}">
+                    ${avatarLetter}
+                </div>
+            `;
+            
+            // Create message content
+            const contentDiv = document.createElement('div');
+            contentDiv.className = 'msg-content';
+            
+            const userDiv = document.createElement('div');
+            userDiv.className = 'msg-user';
+            userDiv.innerHTML = `
+                ${message.user || 'Anonymous'}
+                <span class="msg-time">${formatTime(message.timestamp)}</span>
+            `;
+            
+            const messageContainer = document.createElement('div');
+            messageContainer.className = 'message-container';
+            
+            const textDiv = document.createElement('div');
+            textDiv.className = 'message-text';
+            textDiv.textContent = message.text;
+            
+            messageContainer.appendChild(textDiv);
+            contentDiv.appendChild(userDiv);
+            contentDiv.appendChild(messageContainer);
+            
+            msgDiv.appendChild(avatarDiv);
+            msgDiv.appendChild(contentDiv);
+            
+            chatBox.appendChild(msgDiv);
+            
+            // Scroll to bottom for new messages
+            if (!isHistory) {
+                chatBox.scrollTop = chatBox.scrollHeight;
+            }
+        }
+        
+        // ========== SEND MESSAGE ==========
+        function sendMessage() {
+            const text = messageInput.value.trim();
+            const user = nameInput.value.trim() || 'Anonymous';
+            
+            if (!text) return;
+            
+            const message = {
+                text: text,
+                user: user,
+                avatar: currentProfilePicture,
+                userId: userId,
+                timestamp: Date.now(),
+                color: getColorFromName(user)
+            };
+            
+            // Publish to channel
+            channel.publish('message', message);
+            
+            // Save profile
+            saveUserProfile(user);
+            
+            // Clear input
+            messageInput.value = '';
+            messageInput.focus();
+        }
+        
+        // ========== PROFILE MANAGEMENT ==========
+        function loadUserProfile() {
+            const savedProfile = localStorage.getItem('chatProfile');
+            if (savedProfile) {
+                const profile = JSON.parse(savedProfile);
+                currentProfilePicture = profile.avatar || 'default:0';
+                nameInput.value = profile.name || '';
+                updateAvatarDisplay();
+            } else {
+                currentProfilePicture = 'default:0';
+                updateAvatarDisplay();
+            }
+        }
+        
+        function saveUserProfile(name) {
+            const profile = {
+                name: name,
+                avatar: currentProfilePicture,
+                userId: userId,
+                lastActive: Date.now()
+            };
+            localStorage.setItem('chatProfile', JSON.stringify(profile));
+        }
+        
+        function updateAvatarDisplay() {
+            if (currentProfilePicture && currentProfilePicture.startsWith('default:')) {
+                const index = parseInt(currentProfilePicture.split(':')[1]);
+                const avatar = defaultAvatars[index];
+                currentAvatar.innerHTML = `
+                    <div class="default-avatar" style="background: ${avatar.color}">
+                        ${avatar.initial}
+                    </div>
+                `;
+            }
+        }
+        
+        function generateDefaultAvatars() {
+            const container = document.getElementById('default-avatars');
+            container.innerHTML = '';
+            
+            defaultAvatars.forEach((avatar, index) => {
+                const div = document.createElement('div');
+                div.className = 'avatar-option';
+                div.style.background = avatar.color;
+                div.innerHTML = `
+                    <div class="default-avatar">
+                        ${avatar.initial}
+                    </div>
+                `;
+                div.onclick = () => {
+                    currentProfilePicture = `default:${index}`;
+                    updateAvatarDisplay();
+                    saveUserProfile(nameInput.value || 'Anonymous');
+                    closeProfileModal();
+                };
+                container.appendChild(div);
+            });
+        }
+        
+        // ========== UI FUNCTIONS ==========
+        function openProfileModal() {
+            document.getElementById('profile-modal').style.display = 'block';
+        }
+        
+        function closeProfileModal() {
+            document.getElementById('profile-modal').style.display = 'none';
+        }
+        
+        function saveProfilePicture() {
+            saveUserProfile(nameInput.value || 'Anonymous');
+            closeProfileModal();
+        }
+        
+        function updateUserCount(presenceMsg) {
+            channel.presence.get((err, members) => {
+                if (!err) {
+                    userCount.textContent = `👥 ${members.length} online`;
+                }
+            });
+        }
+        
+        // ========== HELPER FUNCTIONS ==========
+        function generateUserId() {
+            return 'user_' + Math.random().toString(36).substr(2, 9);
+        }
+        
+        function formatTime(timestamp) {
+            const date = new Date(timestamp);
+            const now = new Date();
+            const diff = now - date;
+            
+            // If less than 24 hours, show time
+            if (diff < 24 * 60 * 60 * 1000) {
+                return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            }
+            // If less than 7 days, show day name
+            else if (diff < 7 * 24 * 60 * 60 * 1000) {
+                return date.toLocaleDateString([], { weekday: 'short' });
+            }
+            // Otherwise show date
+            else {
+                return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
+            }
+        }
+        
+        function getColorFromName(name) {
+            const colors = ['#0084ff', '#ff6b6b', '#4CAF50', '#FF9800', '#9C27B0', '#607D8B', '#00BCD4', '#8BC34A'];
+            let hash = 0;
+            for (let i = 0; i < name.length; i++) {
+                hash = name.charCodeAt(i) + ((hash << 5) - hash);
+            }
+            return colors[Math.abs(hash) % colors.length];
+        }
+        
+        // Close modal when clicking outside
+        window.addEventListener('click', (e) => {
+            if (e.target.classList.contains('modal')) {
+                closeProfileModal();
+            }
         });
         
-        // Helper function
-        function getColorFromName(name) {
-            const colors = ['#0084ff', '#ff6b6b', '#4CAF50', '#FF9800', '#9C27B0'];
-            const index = name.length % colors.length;
-            return colors[index];
-        }
+        // Auto-focus message input
+        window.addEventListener('load', () => {
+            messageInput.focus();
+        });
     </script>
 </body>
 </html>
