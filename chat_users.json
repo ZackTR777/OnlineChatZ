@@ -4,5 +4,11 @@
     "color": "#ff6b6b",
     "createdAt": "2026-01-12T23:32:42.518Z",
     "lastLogin": "2026-01-12T23:32:42.518Z"
+  },
+  "Dogg": {
+    "password": "1un28",
+    "color": "#8BC34A",
+    "createdAt": "2026-01-12T23:35:32.419Z",
+    "lastLogin": "2026-01-12T23:35:32.419Z"
   }
 }
