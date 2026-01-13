@@ -6,6 +6,8 @@
     <title>Global Chat Room</title>
     <script src="https://cdn.ably.com/lib/ably.min-1.js"></script>
     <style>
+        /* [KEEP ALL YOUR CSS STYLES EXACTLY AS THEY ARE] */
+        /* Your existing CSS is perfect, no changes needed */
         * {
             margin: 0;
             padding: 0;
@@ -473,8 +475,8 @@
             
             <div class="form-group">
                 <label class="form-label">Username</label>
-                <input type="text" class="form-input" id="loginUsername" placeholder="Enter username (max 10)" maxlength="10" required>
-                <div class="char-counter" id="loginUsernameCounter">0/10</div>
+                <input type="text" class="form-input" id="loginUsername" placeholder="Enter your username" maxlength="20" required>
+                <div class="char-counter" id="loginUsernameCounter">0/20</div>
             </div>
             
             <div class="form-group">
@@ -482,7 +484,7 @@
                 <input type="password" class="form-input" id="loginPassword" placeholder="Enter password" required>
             </div>
             
-            <button type="submit" class="auth-btn" id="loginBtn">Login</button>
+            <button type="submit" class="auth-btn" id="loginBtn">Enter Chat</button>
         </form>
         
         <!-- Register Form -->
@@ -491,13 +493,13 @@
             <div class="success-message" id="registerSuccess"></div>
             
             <div class="form-group">
-                <label class="form-label">Username</label>
-                <input type="text" class="form-input" id="registerUsername" placeholder="Choose username (max 10)" maxlength="10" required>
-                <div class="char-counter" id="registerUsernameCounter">0/10</div>
+                <label class="form-label">Choose Username</label>
+                <input type="text" class="form-input" id="registerUsername" placeholder="Choose username (max 20)" maxlength="20" required>
+                <div class="char-counter" id="registerUsernameCounter">0/20</div>
             </div>
             
             <div class="form-group">
-                <label class="form-label">Password</label>
+                <label class="form-label">Create Password</label>
                 <input type="password" class="form-input" id="registerPassword" placeholder="Create password" required>
             </div>
             
@@ -506,12 +508,12 @@
                 <input type="password" class="form-input" id="registerConfirm" placeholder="Confirm password" required>
             </div>
             
-            <button type="submit" class="auth-btn" id="registerBtn">Create Account</button>
+            <button type="submit" class="auth-btn" id="registerBtn">Create Account & Enter</button>
         </form>
         
         <div class="form-group" style="margin-top: 20px; text-align: center;">
             <div id="dbStatus" style="font-size: 12px; color: #666;">
-                🔄 Checking database connection...
+                ✅ Ready to chat! Just enter a username
             </div>
             <div class="debug-info" id="debugInfo"></div>
         </div>
@@ -542,29 +544,16 @@
     </div>
 
     <script>
-        // ================= SECRET SCANNING DISABLED =================
-        // github-secret-scanning:disable
-        // dependabot-ignore
-        // gitleaks:allow
-        // trufflehog:allow
-        // These keys are for development/testing only
-        
         // ================= CONFIGURATION =================
-        // REPLACE THESE VALUES WITH YOUR ACTUAL CREDENTIALS
-        // These are test/demo keys only - not for production use
-        const ABLY_API_KEY = 'durKGQ.WtBhaA:gNEegxAlZu388_eElwwtvTWwIIkli3Y-A2uAxVQqnPE'; // Try this or get new from ably.com
+        // Only need Ably - no GitHub tokens!
+        const ABLY_API_KEY = 'durKGQ.WtBhaA:gNEegxAlZu388_eElwwtvTWwIIkli3Y-A2uAxVQqnPE';
         const CHANNEL_NAME = 'global-chat-v3';
-        const GITHUB_TOKEN = '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';
-        const REPO_OWNER = 'ZackTR777';
-        const REPO_NAME = 'OnlineChatZ';
         
         // ================= GLOBAL VARIABLES =================
         let ably = null;
         let channel = null;
         let currentUser = null;
         let ablyConnected = false;
-        let messageQueue = [];
-        let messageRefreshInterval = null;
         
         // Avatar colors
         const avatarColors = [
@@ -576,18 +565,11 @@
         // Debug logging
         function debugLog(message, data = null) {
             console.log(`[DEBUG] ${message}`, data || '');
-            const debugEl = document.getElementById('debugInfo');
-            if (debugEl) {
-                debugEl.innerHTML = `${message} ${data ? JSON.stringify(data).substring(0, 100) : ''}`;
-                debugEl.style.display = 'block';
-                setTimeout(() => debugEl.style.display = 'none', 5000);
-            }
         }
         
         // ================= INITIALIZATION =================
         document.addEventListener('DOMContentLoaded', function() {
             console.log('Page loaded - initializing...');
-            debugLog('Initializing application');
             
             // Setup tab switching
             document.getElementById('loginTabBtn').addEventListener('click', function() {
@@ -627,19 +609,18 @@
                 sidebar.style.display = sidebar.style.display === 'block' ? 'none' : 'block';
             });
             
-            // Check GitHub connection
-            checkGitHubConnection();
-            
             // Always show login screen first
             showLoginScreen();
             
-            debugLog('Initialization complete');
+            // Update status
+            document.getElementById('dbStatus').innerHTML = '✅ Ready to connect!';
+            document.getElementById('dbStatus').style.color = '#4CAF50';
+            
+            console.log('Initialization complete');
         });
         
         // ================= UI FUNCTIONS =================
         function showForm(formType) {
-            debugLog('Showing form:', formType);
-            
             // Update tabs
             document.getElementById('loginTabBtn').classList.remove('active');
             document.getElementById('registerTabBtn').classList.remove('active');
@@ -663,7 +644,7 @@
             if (loginUsername && loginCounter) {
                 loginUsername.addEventListener('input', function() {
                     const length = this.value.length;
-                    loginCounter.textContent = `${length}/10`;
+                    loginCounter.textContent = `${length}/20`;
                     updateCounterStyle(loginCounter, length);
                 });
                 loginUsername.dispatchEvent(new Event('input'));
@@ -676,7 +657,7 @@
             if (registerUsername && registerCounter) {
                 registerUsername.addEventListener('input', function() {
                     const length = this.value.length;
-                    registerCounter.textContent = `${length}/10`;
+                    registerCounter.textContent = `${length}/20`;
                     updateCounterStyle(registerCounter, length);
                 });
                 registerUsername.dispatchEvent(new Event('input'));
@@ -685,8 +666,8 @@
         
         function updateCounterStyle(counter, length) {
             counter.classList.remove('warning', 'error');
-            if (length >= 9) counter.classList.add('warning');
-            if (length >= 10) counter.classList.add('error');
+            if (length >= 18) counter.classList.add('warning');
+            if (length >= 20) counter.classList.add('error');
         }
         
         function showMessage(element, message, isError = true) {
@@ -709,69 +690,12 @@
             }
         }
         
-        // ================= GITHUB FUNCTIONS =================
-        async function checkGitHubConnection() {
-            try {
-                const statusEl = document.getElementById('dbStatus');
-                
-                if (!GITHUB_TOKEN || GITHUB_TOKEN.includes('your_token') || GITHUB_TOKEN.length < 20) {
-                    statusEl.innerHTML = '⚠️ GitHub token not configured properly';
-                    statusEl.style.color = '#FF9800';
-                    showMessage(document.getElementById('registerError'), 
-                               'GitHub token not configured. Registration will fail.', true);
-                    return false;
-                }
-                
-                if (!REPO_NAME || REPO_NAME.includes('your_repo')) {
-                    statusEl.innerHTML = '⚠️ Repository name not configured';
-                    statusEl.style.color = '#FF9800';
-                    return false;
-                }
-                
-                const testUrl = `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}`;
-                debugLog('Testing GitHub connection:', testUrl);
-                
-                const response = await fetch(testUrl, {
-                    headers: {
-                        'Authorization': `token ${GITHUB_TOKEN}`,
-                        'Accept': 'application/vnd.github.v3+json'
-                    }
-                });
-                
-                if (response.ok) {
-                    statusEl.innerHTML = '✅ Connected to GitHub database';
-                    statusEl.style.color = '#4CAF50';
-                    return true;
-                } else if (response.status === 404) {
-                    statusEl.innerHTML = `❌ Repository "${REPO_NAME}" not found`;
-                    statusEl.style.color = '#f44336';
-                    showMessage(document.getElementById('registerError'), 
-                               `Repository "${REPO_NAME}" not found. Check REPO_NAME.`, true);
-                    return false;
-                } else if (response.status === 401) {
-                    statusEl.innerHTML = '❌ Invalid GitHub token';
-                    statusEl.style.color = '#f44336';
-                    showMessage(document.getElementById('registerError'), 
-                               'Invalid GitHub token. Generate a new token with repo permissions.', true);
-                    return false;
-                } else {
-                    statusEl.innerHTML = `❌ GitHub error: ${response.status}`;
-                    statusEl.style.color = '#f44336';
-                    return false;
-                }
-            } catch (error) {
-                console.error('GitHub connection error:', error);
-                document.getElementById('dbStatus').innerHTML = 
-                    '❌ Cannot connect to GitHub. Check network/token.';
-                document.getElementById('dbStatus').style.color = '#f44336';
-                return false;
-            }
-        }
+        // ================= SIMPLE AUTHENTICATION =================
+        // SIMPLE VERSION: No database, just username/password check
+        // Users are stored in localStorage but it's JUST for demo
+        // In real app, you'd use a backend
         
-        // ================= AUTHENTICATION =================
         async function handleLogin() {
-            debugLog('Login attempt started');
-            
             const username = document.getElementById('loginUsername').value.trim();
             const password = document.getElementById('loginPassword').value;
             const errorEl = document.getElementById('loginError');
@@ -788,42 +712,38 @@
                 return;
             }
             
-            if (username.length > 10) {
-                showMessage(errorEl, 'Username must be 10 characters or less', true);
+            if (username.length > 20) {
+                showMessage(errorEl, 'Username must be 20 characters or less', true);
                 return;
             }
             
             // Show loading
             const originalText = btn.textContent;
-            btn.textContent = 'Logging in...';
+            btn.textContent = 'Entering chat...';
             btn.disabled = true;
             
             try {
-                debugLog('Checking if user exists:', username);
+                // For demo: Just check if username exists in localStorage
+                // In real app, this would check a database
+                const users = JSON.parse(localStorage.getItem('chat_users') || '{}');
                 
-                // First check if user exists
-                const userExists = await checkUserExists(username);
-                
-                if (!userExists) {
-                    showMessage(errorEl, 'Account does not exist. Please register first.', true);
+                if (!users[username]) {
+                    showMessage(errorEl, 'Username not found. You can register instead.', true);
                     return;
                 }
                 
-                // Now check password
-                const isValid = await validateUser(username, password);
-                
-                if (!isValid) {
-                    showMessage(errorEl, 'Incorrect password. Please try again.', true);
+                // Simple password check (not secure for production!)
+                if (users[username].password !== simpleHash(password)) {
+                    showMessage(errorEl, 'Incorrect password', true);
                     return;
                 }
                 
                 // Login successful
-                debugLog('Login successful for user:', username);
-                showMessage(successEl, 'Login successful! Redirecting to chat...', false);
+                showMessage(successEl, 'Welcome back! Entering chat...', false);
                 
                 currentUser = {
                     username: username,
-                    color: getColorFromName(username),
+                    color: users[username].color || getColorFromName(username),
                     joined: new Date().toISOString()
                 };
                 
@@ -832,7 +752,7 @@
                 
             } catch (error) {
                 console.error('Login error:', error);
-                showMessage(errorEl, `Login failed: ${error.message || 'Unknown error'}`, true);
+                showMessage(errorEl, `Error: ${error.message || 'Unknown error'}`, true);
             } finally {
                 // Restore button
                 btn.textContent = originalText;
@@ -841,8 +761,6 @@
         }
         
         async function handleRegister() {
-            debugLog('Registration attempt started');
-            
             const username = document.getElementById('registerUsername').value.trim();
             const password = document.getElementById('registerPassword').value;
             const confirmPassword = document.getElementById('registerConfirm').value;
@@ -860,8 +778,8 @@
                 return;
             }
             
-            if (username.length > 10) {
-                showMessage(errorEl, 'Username must be 10 characters or less', true);
+            if (username.length > 20) {
+                showMessage(errorEl, 'Username must be 20 characters or less', true);
                 return;
             }
             
@@ -880,40 +798,31 @@
                 return;
             }
             
-            // Check GitHub connection first
-            const isConnected = await checkGitHubConnection();
-            if (!isConnected) {
-                showMessage(errorEl, 'Cannot connect to database. Check GitHub configuration.', true);
-                return;
-            }
-            
             // Show loading
             const originalText = btn.textContent;
             btn.textContent = 'Creating account...';
             btn.disabled = true;
             
             try {
-                debugLog('Checking if username is available:', username);
+                // Check if username already exists
+                const users = JSON.parse(localStorage.getItem('chat_users') || '{}');
                 
-                // Check if user already exists
-                const userExists = await checkUserExists(username);
-                
-                if (userExists) {
+                if (users[username]) {
                     showMessage(errorEl, 'Username already taken. Please choose another.', true);
                     return;
                 }
                 
-                // Create new user
-                debugLog('Creating user in database:', username);
-                const success = await createUser(username, password);
+                // Create new user in localStorage (for demo only!)
+                users[username] = {
+                    password: simpleHash(password),
+                    color: getColorFromName(username),
+                    createdAt: new Date().toISOString()
+                };
                 
-                if (!success) {
-                    throw new Error('Failed to create user in database');
-                }
+                localStorage.setItem('chat_users', JSON.stringify(users));
                 
                 // Registration successful
-                debugLog('Registration successful for user:', username);
-                showMessage(successEl, 'Account created successfully! Logging in...', false);
+                showMessage(successEl, 'Account created! Entering chat...', false);
                 
                 currentUser = {
                     username: username,
@@ -926,7 +835,7 @@
                 
             } catch (error) {
                 console.error('Registration error:', error);
-                showMessage(errorEl, `Registration failed: ${error.message || 'Check GitHub token and repository name'}`, true);
+                showMessage(errorEl, `Error: ${error.message || 'Unknown error'}`, true);
             } finally {
                 // Restore button
                 btn.textContent = originalText;
@@ -934,158 +843,8 @@
             }
         }
         
-        async function checkUserExists(username) {
-            try {
-                const url = `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/chat_users.json`;
-                debugLog('Checking user existence:', username);
-                
-                const response = await fetch(url, {
-                    headers: {
-                        'Authorization': `token ${GITHUB_TOKEN}`,
-                        'Accept': 'application/vnd.github.v3+json'
-                    }
-                });
-                
-                if (!response.ok) {
-                    if (response.status === 404) {
-                        debugLog('Users file does not exist yet');
-                        return false;
-                    }
-                    throw new Error(`GitHub API error: ${response.status}`);
-                }
-                
-                const data = await response.json();
-                const content = atob(data.content);
-                const users = JSON.parse(content);
-                
-                const exists = users.hasOwnProperty(username);
-                debugLog(`User ${username} exists:`, exists);
-                return exists;
-            } catch (error) {
-                console.error('Error checking user:', error);
-                return false;
-            }
-        }
-        
-        async function validateUser(username, password) {
-            try {
-                const url = `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/chat_users.json`;
-                const response = await fetch(url, {
-                    headers: {
-                        'Authorization': `token ${GITHUB_TOKEN}`,
-                        'Accept': 'application/vnd.github.v3+json'
-                    }
-                });
-                
-                if (!response.ok) {
-                    return false;
-                }
-                
-                const data = await response.json();
-                const content = atob(data.content);
-                const users = JSON.parse(content);
-                const user = users[username];
-                
-                if (!user) {
-                    return false;
-                }
-                
-                // Check password
-                return user.password === hashPassword(password);
-            } catch (error) {
-                console.error('Error validating user:', error);
-                return false;
-            }
-        }
-        
-        async function createUser(username, password) {
-            try {
-                debugLog('Starting user creation:', username);
-                
-                // Get existing users or create empty object
-                let users = {};
-                let sha = null;
-                
-                try {
-                    const url = `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/chat_users.json`;
-                    const response = await fetch(url, {
-                        headers: {
-                            'Authorization': `token ${GITHUB_TOKEN}`,
-                            'Accept': 'application/vnd.github.v3+json'
-                        }
-                    });
-                    
-                    if (response.ok) {
-                        const data = await response.json();
-                        const content = atob(data.content);
-                        users = JSON.parse(content);
-                        sha = data.sha;
-                        debugLog('Loaded existing users file');
-                    } else if (response.status === 404) {
-                        debugLog('Creating new users file');
-                    } else {
-                        debugLog('Unexpected response:', response.status);
-                        throw new Error(`Cannot access users file: ${response.status}`);
-                    }
-                } catch (error) {
-                    debugLog('Error loading users, starting fresh:', error.message);
-                }
-                
-                // Add new user
-                users[username] = {
-                    password: hashPassword(password),
-                    color: getColorFromName(username),
-                    createdAt: new Date().toISOString()
-                };
-                
-                debugLog('Prepared user data for:', username);
-                
-                // Save to GitHub
-                const content = JSON.stringify(users, null, 2);
-                const contentBase64 = btoa(content);
-                
-                const saveUrl = `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/chat_users.json`;
-                const body = {
-                    message: `Add user ${username}`,
-                    content: contentBase64
-                };
-                
-                // Add SHA if we're updating existing file
-                if (sha) {
-                    body.sha = sha;
-                }
-                
-                debugLog('Saving to GitHub:', saveUrl);
-                const saveResponse = await fetch(saveUrl, {
-                    method: 'PUT',
-                    headers: {
-                        'Authorization': `token ${GITHUB_TOKEN}`,
-                        'Accept': 'application/vnd.github.v3+json',
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(body)
-                });
-                
-                const responseData = await saveResponse.json();
-                
-                if (!saveResponse.ok) {
-                    debugLog('GitHub save failed:', responseData);
-                    throw new Error(`GitHub error: ${responseData.message || 'Unknown error'}`);
-                }
-                
-                debugLog('User created successfully');
-                return true;
-                
-            } catch (error) {
-                console.error('Error in createUser:', error);
-                throw error;
-            }
-        }
-        
         // ================= CHAT FUNCTIONS =================
         function showLoginScreen() {
-            debugLog('Showing login screen');
-            
             // Show auth screen, hide chat screen
             document.getElementById('auth-screen').style.display = 'block';
             document.getElementById('chat-screen').style.display = 'none';
@@ -1111,16 +870,10 @@
             // Reset current user
             currentUser = null;
             ablyConnected = false;
-            
-            // Clear message refresh interval
-            if (messageRefreshInterval) {
-                clearInterval(messageRefreshInterval);
-                messageRefreshInterval = null;
-            }
         }
         
         async function startChat() {
-            debugLog('Starting chat for user:', currentUser.username);
+            if (!currentUser) return;
             
             try {
                 // Switch to chat screen
@@ -1130,59 +883,39 @@
                 // Show loading
                 document.getElementById('chatMessages').innerHTML = '<div class="loading">Connecting to chat...</div>';
                 
-                // Try to connect to Ably (but don't fail if it doesn't work)
+                // Connect to Ably
                 await connectToAbly();
-                
-                // Load messages from GitHub
-                await loadMessages();
-                
-                // Start message refresh if Ably is not connected
-                if (!ablyConnected) {
-                    startMessageRefresh();
-                }
                 
                 // Focus input
                 setTimeout(() => {
                     document.getElementById('messageInput').focus();
                 }, 100);
                 
-                debugLog('Chat started successfully');
+                console.log('Chat started successfully');
                 
             } catch (error) {
                 console.error('Error in startChat:', error);
                 
-                // Even if Ably fails, we can still load messages from GitHub
-                try {
-                    await loadMessages();
-                    debugLog('Loaded messages despite connection issues');
-                } catch (loadError) {
-                    console.error('Failed to load messages:', loadError);
-                }
-                
-                // Start message refresh since Ably is not connected
-                startMessageRefresh();
-                
-                // Show warning but don't go back to login
+                // Show error message
                 const chatMessages = document.getElementById('chatMessages');
                 const loadingEl = document.getElementById('loadingMessages');
                 if (loadingEl) loadingEl.remove();
                 
-                const warning = document.createElement('div');
-                warning.className = 'message';
-                warning.innerHTML = `
-                    <div class="message-avatar" style="background: #FF9800">⚠️</div>
+                const errorMsg = document.createElement('div');
+                errorMsg.className = 'message';
+                errorMsg.innerHTML = `
+                    <div class="message-avatar" style="background: #f44336">!</div>
                     <div class="message-content">
                         <div class="message-header">
                             <span class="message-username">System</span>
                         </div>
                         <div class="message-text">
-                            Connected in offline mode. Messages will be saved to database.
-                            ${ablyConnected ? '' : 'Real-time features are limited. Messages refresh every 30 seconds.'}
+                            Failed to connect to chat server. Please refresh and try again.
                         </div>
                     </div>
                 `;
                 
-                chatMessages.appendChild(warning);
+                chatMessages.appendChild(errorMsg);
                 chatMessages.scrollTop = chatMessages.scrollHeight;
             }
         }
@@ -1190,190 +923,129 @@
         async function connectToAbly() {
             try {
                 if (!ABLY_API_KEY || ABLY_API_KEY.includes('your_ably_key')) {
-                    updateConnectionStatus('offline', 'Ably not configured - using offline mode');
+                    updateConnectionStatus('offline', 'Ably not configured');
                     throw new Error('Ably API key not configured');
                 }
                 
-                debugLog('Connecting to Ably...');
+                console.log('Connecting to Ably...');
                 updateConnectionStatus('', 'Connecting to chat server...');
                 
-                // Initialize Ably with timeout
+                // Initialize Ably
                 ably = new Ably.Realtime({
                     key: ABLY_API_KEY,
                     echoMessages: false,
                     autoConnect: true
                 });
                 
-                // Set up connection state listener
+                // Set up connection
                 return new Promise((resolve, reject) => {
                     const timeout = setTimeout(() => {
                         console.warn('Ably connection timeout');
-                        updateConnectionStatus('offline', 'Using offline mode');
+                        updateConnectionStatus('offline', 'Connection timeout');
                         ablyConnected = false;
-                        resolve(false); // Don't reject, just resolve with false
-                    }, 8000); // 8 second timeout
+                        resolve(false);
+                    }, 10000);
                     
                     ably.connection.on('connected', () => {
                         clearTimeout(timeout);
-                        debugLog('Ably connected successfully');
+                        console.log('Ably connected successfully');
                         updateConnectionStatus('online', 'Connected to chat');
                         ablyConnected = true;
                         
                         // Get channel
-                        channel = ably.channels.get(CHANNEL_NAME);
+                        channel = ably.channels.get(CHANNEL_NAME, {
+                            params: { history: '100' } // Get last 100 messages from history
+                        });
                         
                         // Enter presence
                         channel.presence.enter({
                             username: currentUser.username,
-                            color: currentUser.color
+                            color: currentUser.color,
+                            timestamp: new Date().toISOString()
                         }).then(() => {
-                            debugLog('Entered presence channel');
+                            console.log('Entered presence channel');
                             
                             // Subscribe to new messages
                             channel.subscribe('message', handleNewMessage);
                             
-                            // Get online users
+                            // Listen for presence updates
+                            channel.presence.subscribe('enter', updateOnlineUsers);
+                            channel.presence.subscribe('leave', updateOnlineUsers);
+                            
+                            // Get initial online users
                             channel.presence.get((err, members) => {
                                 if (!err && members) {
-                                    updateOnlineUsers(members);
+                                    updateOnlineUsers();
                                 }
                             });
                             
-                            // Process any queued messages
-                            processMessageQueue();
+                            // Load message history
+                            loadMessageHistory();
                             
                             resolve(true);
                         }).catch(err => {
                             console.error('Error entering presence:', err);
                             ablyConnected = false;
-                            resolve(false); // Still resolve so chat continues
+                            resolve(false);
                         });
                     });
                     
                     ably.connection.on('failed', () => {
                         clearTimeout(timeout);
                         console.error('Ably connection failed');
-                        updateConnectionStatus('offline', 'Connection failed - using offline mode');
+                        updateConnectionStatus('offline', 'Connection failed');
                         ablyConnected = false;
                         resolve(false);
                     });
                     
                     ably.connection.on('disconnected', () => {
                         console.warn('Ably disconnected');
-                        updateConnectionStatus('offline', 'Disconnected - using offline mode');
-                        ablyConnected = false;
-                    });
-                    
-                    ably.connection.on('closed', () => {
-                        console.warn('Ably connection closed');
-                        updateConnectionStatus('offline', 'Connection closed');
-                        ablyConnected = false;
-                    });
-                    
-                    ably.connection.on('suspended', () => {
-                        console.warn('Ably connection suspended');
-                        updateConnectionStatus('offline', 'Connection suspended');
+                        updateConnectionStatus('offline', 'Disconnected');
                         ablyConnected = false;
                     });
                 });
                 
             } catch (error) {
                 console.error('Ably connection error:', error);
-                updateConnectionStatus('offline', 'Using offline mode');
+                updateConnectionStatus('offline', 'Connection error');
                 ablyConnected = false;
                 return false;
             }
         }
         
-        function processMessageQueue() {
-            if (!ablyConnected || !channel) return;
-            
-            while (messageQueue.length > 0) {
-                const message = messageQueue.shift();
-                try {
-                    channel.publish('message', message);
-                    debugLog('Published queued message');
-                } catch (error) {
-                    console.error('Failed to publish queued message:', error);
-                }
-            }
-        }
-        
-        function startMessageRefresh() {
-            // Clear any existing interval
-            if (messageRefreshInterval) {
-                clearInterval(messageRefreshInterval);
-            }
-            
-            // Refresh messages every 30 seconds if Ably is not connected
-            if (!ablyConnected) {
-                messageRefreshInterval = setInterval(async () => {
-                    try {
-                        await loadMessages();
-                        debugLog('Refreshed messages from GitHub');
-                    } catch (error) {
-                        console.error('Error refreshing messages:', error);
-                    }
-                }, 30000); // 30 seconds
-            }
-        }
-        
-        async function loadMessages() {
+        async function loadMessageHistory() {
             try {
-                const url = `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/chat_messages.json`;
-                const response = await fetch(url, {
-                    headers: {
-                        'Authorization': `token ${GITHUB_TOKEN}`,
-                        'Accept': 'application/vnd.github.v3+json'
-                    }
-                });
-                
                 const chatMessages = document.getElementById('chatMessages');
                 
-                if (response.ok) {
-                    const data = await response.json();
-                    const content = atob(data.content);
-                    const messages = JSON.parse(content);
+                // Get message history from Ably
+                const historyPage = await channel.history({ limit: 50 });
+                
+                // Clear loading
+                const loadingEl = document.getElementById('loadingMessages');
+                if (loadingEl) loadingEl.remove();
+                
+                if (historyPage.items && historyPage.items.length > 0) {
+                    // Show messages (oldest first)
+                    historyPage.items.reverse().forEach(item => {
+                        displayMessage(item.data, true);
+                    });
                     
-                    // Only update if we have messages
-                    if (messages.length > 0) {
-                        // Clear only if not already displaying messages
-                        const currentMsgCount = chatMessages.querySelectorAll('.message').length;
-                        if (currentMsgCount === 0 || !ablyConnected) {
-                            chatMessages.innerHTML = '';
-                            
-                            // Show last 20 messages
-                            messages.slice(-20).forEach(msg => {
-                                displayMessage(msg, true);
-                            });
-                            
-                            chatMessages.scrollTop = chatMessages.scrollHeight;
-                        }
-                    } else {
-                        // Only show welcome if no messages at all
-                        const currentMsgCount = chatMessages.querySelectorAll('.message').length;
-                        if (currentMsgCount === 0) {
-                            showWelcomeMessage();
-                        }
-                    }
+                    chatMessages.scrollTop = chatMessages.scrollHeight;
                 } else {
-                    // Only show welcome if no messages at all
-                    const currentMsgCount = chatMessages.querySelectorAll('.message').length;
-                    if (currentMsgCount === 0) {
-                        showWelcomeMessage();
-                    }
-                }
-            } catch (error) {
-                console.log('Error loading messages:', error);
-                const currentMsgCount = document.getElementById('chatMessages').querySelectorAll('.message').length;
-                if (currentMsgCount === 0) {
+                    // Show welcome message if no history
                     showWelcomeMessage();
                 }
+            } catch (error) {
+                console.log('Error loading message history:', error);
+                showWelcomeMessage();
             }
         }
         
         function showWelcomeMessage() {
             const chatMessages = document.getElementById('chatMessages');
+            const loadingEl = document.getElementById('loadingMessages');
+            if (loadingEl) loadingEl.remove();
+            
             const welcome = document.createElement('div');
             welcome.className = 'message';
             welcome.innerHTML = `
@@ -1383,8 +1055,7 @@
                         <span class="message-username">Welcome!</span>
                     </div>
                     <div class="message-text">
-                        Welcome to Global Chat Room! Start chatting with people around the world.
-                        ${!ablyConnected ? '<br><small>Messages refresh every 30 seconds in offline mode.</small>' : ''}
+                        Welcome to Global Chat Room! You're the first here. Say hello to start the conversation!
                     </div>
                 </div>
             `;
@@ -1397,77 +1068,8 @@
                 return;
             }
             
-            const msgData = message.data;
-            if (!msgData.timestamp) {
-                msgData.timestamp = Date.now();
-            }
-            
-            // Display message
-            displayMessage(msgData, false);
-            
-            // Save to database in background
-            saveMessageToGitHub(msgData).catch(console.error);
-        }
-        
-        async function saveMessageToGitHub(message) {
-            try {
-                // Get existing messages
-                let messages = [];
-                let sha = null;
-                
-                try {
-                    const url = `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/chat_messages.json`;
-                    const response = await fetch(url, {
-                        headers: {
-                            'Authorization': `token ${GITHUB_TOKEN}`,
-                            'Accept': 'application/vnd.github.v3+json'
-                        }
-                    });
-                    
-                    if (response.ok) {
-                        const data = await response.json();
-                        const content = atob(data.content);
-                        messages = JSON.parse(content);
-                        sha = data.sha;
-                    }
-                } catch (error) {
-                    console.log('Creating new messages file');
-                }
-                
-                // Add new message
-                messages.push(message);
-                
-                // Keep only last 50 messages to prevent file from getting too large
-                if (messages.length > 50) {
-                    messages = messages.slice(-50);
-                }
-                
-                // Save to GitHub
-                const content = JSON.stringify(messages, null, 2);
-                const contentBase64 = btoa(content);
-                
-                const saveUrl = `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/chat_messages.json`;
-                const body = {
-                    message: `New message from ${message.user}`,
-                    content: contentBase64
-                };
-                
-                if (sha) {
-                    body.sha = sha;
-                }
-                
-                await fetch(saveUrl, {
-                    method: 'PUT',
-                    headers: {
-                        'Authorization': `token ${GITHUB_TOKEN}`,
-                        'Accept': 'application/vnd.github.v3+json',
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(body)
-                });
-            } catch (error) {
-                console.error('Error saving message:', error);
-            }
+            // Display the message
+            displayMessage(message.data, false);
         }
         
         function displayMessage(message, isHistory) {
@@ -1504,64 +1106,51 @@
             }
         }
         
-        function updateOnlineUsers(members) {
-            if (!ablyConnected || !members || members.length === 0) {
-                // If no members from Ably, show just the current user
-                const onlineCount = currentUser ? 1 : 0;
+        function updateOnlineUsers() {
+            if (!ablyConnected || !channel) {
+                return;
+            }
+            
+            channel.presence.get((err, members) => {
+                if (err || !members) {
+                    return;
+                }
+                
+                const uniqueUsers = new Map();
+                
+                members.forEach(member => {
+                    const username = member.data?.username || 'Anonymous';
+                    const color = member.data?.color || getColorFromName(username);
+                    
+                    if (!uniqueUsers.has(username)) {
+                        uniqueUsers.set(username, { color });
+                    }
+                });
+                
+                // Update counter
+                const onlineCount = uniqueUsers.size;
                 document.getElementById('onlineCounter').textContent = `👥 ${onlineCount} online`;
                 
                 // Update users list
                 const usersList = document.getElementById('usersList');
                 usersList.innerHTML = '';
                 
-                if (currentUser) {
+                uniqueUsers.forEach((userData, username) => {
                     const userItem = document.createElement('div');
                     userItem.className = 'user-item';
                     userItem.innerHTML = `
-                        <div class="user-avatar" style="background: ${currentUser.color}">
-                            ${currentUser.username[0].toUpperCase()}
+                        <div class="user-avatar" style="background: ${userData.color}">
+                            ${username[0].toUpperCase()}
                         </div>
-                        <div class="user-name">${currentUser.username} (You)</div>
+                        <div class="user-name">${username} ${username === currentUser?.username ? '(You)' : ''}</div>
                     `;
                     usersList.appendChild(userItem);
-                }
-                return;
-            }
-            
-            const uniqueUsers = new Map();
-            
-            members.forEach(member => {
-                const username = member.data?.username || 'Anonymous';
-                const color = member.data?.color || getColorFromName(username);
-                
-                if (!uniqueUsers.has(username)) {
-                    uniqueUsers.set(username, { color });
-                }
-            });
-            
-            // Update counter
-            const onlineCount = uniqueUsers.size;
-            document.getElementById('onlineCounter').textContent = `👥 ${onlineCount} online`;
-            
-            // Update users list
-            const usersList = document.getElementById('usersList');
-            usersList.innerHTML = '';
-            
-            uniqueUsers.forEach((userData, username) => {
-                const userItem = document.createElement('div');
-                userItem.className = 'user-item';
-                userItem.innerHTML = `
-                    <div class="user-avatar" style="background: ${userData.color}">
-                        ${username[0].toUpperCase()}
-                    </div>
-                    <div class="user-name">${username} ${username === currentUser?.username ? '(You)' : ''}</div>
-                `;
-                usersList.appendChild(userItem);
+                });
             });
         }
         
         async function sendMessage() {
-            if (!currentUser) return;
+            if (!currentUser || !ablyConnected || !channel) return;
             
             const input = document.getElementById('messageInput');
             const text = input.value.trim();
@@ -1581,21 +1170,12 @@
                     timestamp: Date.now()
                 };
                 
-                // Display message immediately
+                // Display message immediately (optimistic update)
                 displayMessage(message, false);
                 
-                // Try to publish to Ably
-                if (ablyConnected && channel) {
-                    await channel.publish('message', message);
-                    debugLog('Message sent via Ably');
-                } else {
-                    // Queue message for later if Ably reconnects
-                    messageQueue.push(message);
-                    debugLog('Message queued (Ably not connected)');
-                }
-                
-                // Always save to GitHub (primary storage)
-                await saveMessageToGitHub(message);
+                // Publish to Ably
+                await channel.publish('message', message);
+                console.log('Message sent via Ably');
                 
                 // Clear input
                 input.value = '';
@@ -1604,7 +1184,7 @@
             } catch (error) {
                 console.error('Error sending message:', error);
                 
-                // Show error but don't prevent user from continuing
+                // Show error message
                 const errorMsg = document.createElement('div');
                 errorMsg.className = 'message';
                 errorMsg.innerHTML = `
@@ -1614,7 +1194,7 @@
                             <span class="message-username">System</span>
                         </div>
                         <div class="message-text">
-                            Message saved locally. ${ablyConnected ? '' : 'Connection issues detected.'}
+                            Failed to send message. Please try again.
                         </div>
                     </div>
                 `;
@@ -1627,7 +1207,7 @@
         }
         
         function logout() {
-            debugLog('Logging out');
+            console.log('Logging out');
             
             // Leave presence if connected
             if (channel && ablyConnected) {
@@ -1647,18 +1227,11 @@
                 }
             }
             
-            // Clear message refresh interval
-            if (messageRefreshInterval) {
-                clearInterval(messageRefreshInterval);
-                messageRefreshInterval = null;
-            }
-            
             // Reset variables
             ably = null;
             channel = null;
             currentUser = null;
             ablyConnected = false;
-            messageQueue = [];
             
             // Go back to login screen
             showLoginScreen();
@@ -1678,7 +1251,8 @@
             return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
         }
         
-        function hashPassword(password) {
+        function simpleHash(password) {
+            // Simple hash for demo - NOT secure for production!
             let hash = 0;
             for (let i = 0; i < password.length; i++) {
                 const char = password.charCodeAt(i);
